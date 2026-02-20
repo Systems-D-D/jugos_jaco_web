@@ -130,7 +130,7 @@ class SaleService
                 $productosAsignados = AssignedProduct::where('employee_id', Auth::user()->employee->id)
                     ->todayAssignments()
                     ->with(['details' => function ($query) use ($productData) {
-                        $query->select('id', 'product_id', 'sale_quantity', 'assigned_products_id', 'quantity')
+                        $query->select('id', 'product_id', 'sale_quantity', 'assigned_products_id', 'quantity', 'changes_quantity', 'royalties_quantity')
                             ->where('product_id', $productData['product_id']);
                     }])
                     ->first();
@@ -138,8 +138,8 @@ class SaleService
                 if ($productosAsignados && $productosAsignados->details->count() > 0) {
                     $detail = $productosAsignados->details->first();
                     
-                    if ($detail->sale_quantity) {
-                        $nSaleQuantity = ($detail->sale_quantity ?? 0) + $productData['quantity'];
+                    if ($detail) {
+                        $nSaleQuantity = ($detail->sale_quantity ?? 0) + $detail->changes_quantity + $detail->royalties_quantity + $productData['quantity'];
 
                         if ($detail->quantity < $nSaleQuantity) throw new Exception(
                             "La cantidad a vender del producto {$productData['name']} excede la cantidad asignada");

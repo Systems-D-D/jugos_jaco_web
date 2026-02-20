@@ -912,11 +912,7 @@
                                                                     <span class="fi-ta-header-cell-label text-sm font-semibold text-gray-950 dark:text-white">Hora</span>
                                                                 </span>
                                                             </th>
-                                                            <th class="fi-ta-header-cell px-3 py-3.5 sm:first-of-type:ps-6 sm:last-of-type:pe-6 text-start">
-                                                                <span class="group flex w-full items-center gap-x-1 whitespace-nowrap justify-start">
-                                                                    <span class="fi-ta-header-cell-label text-sm font-semibold text-gray-950 dark:text-white">Acciones</span>
-                                                                </span>
-                                                            </th>
+
                                                         </tr>
                                                     </thead>
                                                     <tbody class="fi-ta-body divide-y divide-gray-200 whitespace-nowrap dark:divide-white/5">
@@ -984,6 +980,116 @@
                                     <div class="text-center py-6">
                                         <div class="text-gray-400 text-3xl mb-2">🔄</div>
                                         <p class="text-gray-500 text-sm">No hay devoluciones registradas para hoy</p>
+                                    </div>
+                                    @endif
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Movements Section (Changes and Royalties) -->
+                        <div class="fi-section rounded-xl bg-white shadow-sm ring-1 ring-gray-950/5 dark:bg-gray-900 dark:ring-white/10 mb-6">
+                            <div class="fi-section-header flex flex-col gap-3 p-6 pb-0">
+                                <div class="flex items-center justify-between gap-x-3">
+                                    <div class="flex items-center gap-x-3">
+                                        <h4 class="fi-section-header-heading text-base font-semibold leading-6 text-gray-950 dark:text-white">🔄 Movimientos (Cambios y Regalías)</h4>
+                                    </div>
+                                    <div class="inline-flex items-center justify-center rounded-full bg-blue-50 px-2.5 py-0.5 text-blue-700 dark:bg-blue-500/10 dark:text-blue-400">
+                                        <span class="text-xs font-medium">{{ count($movements) }} {{ count($movements) == 1 ? 'movimiento' : 'movimientos' }}</span>
+                                    </div>
+                                </div>
+                                <div class="fi-section-content p-6">
+
+
+                                    <!-- Movements Table -->
+                                    @if(count($movements) > 0)
+                                    <div class="overflow-hidden">
+                                        <div class="overflow-x-auto" style="max-height: 225px;">
+                                            <div class="fi-ta-content relative divide-y divide-gray-200 overflow-x-auto dark:divide-white/10 dark:border-t-white/10">
+                                                <table class="fi-ta-table w-full table-auto divide-y divide-gray-200 text-start dark:divide-white/5">
+                                                    <thead class="fi-ta-header-ctn divide-y divide-gray-200 dark:divide-white/5">
+                                                        <tr class="bg-gray-50 dark:bg-white/5">
+                                                            <th class="fi-ta-header-cell px-3 py-3.5 sm:first-of-type:ps-6 sm:last-of-type:pe-6 text-start">
+                                                                <span class="group flex w-full items-center gap-x-1 whitespace-nowrap justify-start">
+                                                                    <span class="fi-ta-header-cell-label text-sm font-semibold text-gray-950 dark:text-white">Producto</span>
+                                                                </span>
+                                                            </th>
+                                                            <th class="fi-ta-header-cell px-3 py-3.5 sm:first-of-type:ps-6 sm:last-of-type:pe-6 text-start">
+                                                                <span class="group flex w-full items-center gap-x-1 whitespace-nowrap justify-start">
+                                                                    <span class="fi-ta-header-cell-label text-sm font-semibold text-gray-950 dark:text-white">Cantidad</span>
+                                                                </span>
+                                                            </th>
+                                                            <th class="fi-ta-header-cell px-3 py-3.5 sm:first-of-type:ps-6 sm:last-of-type:pe-6 text-start">
+                                                                <span class="group flex w-full items-center gap-x-1 whitespace-nowrap justify-start">
+                                                                    <span class="fi-ta-header-cell-label text-sm font-semibold text-gray-950 dark:text-white">Tipo</span>
+                                                                </span>
+                                                            </th>
+                                                            <th class="fi-ta-header-cell px-3 py-3.5 sm:first-of-type:ps-6 sm:last-of-type:pe-6 text-start">
+                                                                <span class="group flex w-full items-center gap-x-1 whitespace-nowrap justify-start">
+                                                                    <span class="fi-ta-header-cell-label text-sm font-semibold text-gray-950 dark:text-white">Nota</span>
+                                                                </span>
+                                                            </th>
+                                                            <th class="fi-ta-header-cell px-3 py-3.5 sm:first-of-type:ps-6 sm:last-of-type:pe-6 text-start">
+                                                                <span class="group flex w-full items-center gap-x-1 whitespace-nowrap justify-start">
+                                                                    <span class="fi-ta-header-cell-label text-sm font-semibold text-gray-950 dark:text-white">Hora</span>
+                                                                </span>
+                                                            </th>
+                                                            <th class="fi-ta-header-cell px-3 py-3.5 sm:first-of-type:ps-6 sm:last-of-type:pe-6 text-start">
+                                                                <span class="group flex w-full items-center gap-x-1 whitespace-nowrap justify-start">
+                                                                    <span class="fi-ta-header-cell-label text-sm font-semibold text-gray-950 dark:text-white">Acciones</span>
+                                                                </span>
+                                                            </th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody class="fi-ta-body divide-y divide-gray-200 whitespace-nowrap dark:divide-white/5">
+                                                        @foreach($movements as $movement)
+                                                        <tr class="fi-ta-row [@media(hover:hover)]:transition [@media(hover:hover)]:duration-75 hover:bg-gray-50 dark:hover:bg-white/5">
+                                                            <td class="fi-ta-cell p-0 first-of-type:ps-1 last-of-type:pe-1 sm:first-of-type:ps-3 sm:last-of-type:pe-3">
+                                                                <div class="fi-ta-col-wrp px-3 py-4">
+                                                                    <div class="fi-ta-text text-sm leading-6 text-gray-950 dark:text-white">
+                                                                        {{ $movement['product_name'] }}
+                                                                    </div>
+                                                                </div>
+                                                            </td>
+                                                            <td class="fi-ta-cell p-0 first-of-type:ps-1 last-of-type:pe-1 sm:first-of-type:ps-3 sm:last-of-type:pe-3">
+                                                                <div class="fi-ta-col-wrp px-3 py-4">
+                                                                    <div class="fi-ta-text text-sm leading-6 text-gray-950 dark:text-white">
+                                                                        {{ $movement['quantity'] }}
+                                                                    </div>
+                                                                </div>
+                                                            </td>
+                                                            <td class="fi-ta-cell p-0 first-of-type:ps-1 last-of-type:pe-1 sm:first-of-type:ps-3 sm:last-of-type:pe-3">
+                                                                <div class="fi-ta-col-wrp px-3 py-4">
+                                                                    <span class="fi-badge flex items-center justify-center gap-x-1 rounded-md text-xs font-medium ring-1 ring-inset px-2 py-1 {{ $movement['type_raw'] === 'change' ? 'fi-color-info bg-blue-50 text-blue-600 ring-blue-600/10 dark:bg-blue-400/10 dark:text-blue-400 dark:ring-blue-400/30' : 'fi-color-success bg-green-50 text-green-600 ring-green-600/10 dark:bg-green-400/10 dark:text-green-400 dark:ring-green-400/30' }}">
+                                                                        {{ $movement['type'] }}
+                                                                    </span>
+                                                                </div>
+                                                            </td>
+                                                            <td class="fi-ta-cell p-0 first-of-type:ps-1 last-of-type:pe-1 sm:first-of-type:ps-3 sm:last-of-type:pe-3">
+                                                                <div class="fi-ta-col-wrp px-3 py-4">
+                                                                    <div class="fi-ta-text text-sm leading-6 text-gray-950 dark:text-white truncate max-w-32" title="{{ $movement['note'] }}">
+                                                                        {{ $movement['note'] }}
+                                                                    </div>
+                                                                </div>
+                                                            </td>
+                                                            <td class="fi-ta-cell p-0 first-of-type:ps-1 last-of-type:pe-1 sm:first-of-type:ps-3 sm:last-of-type:pe-3">
+                                                                <div class="fi-ta-col-wrp px-3 py-4">
+                                                                    <div class="fi-ta-text text-sm leading-6 text-gray-950 dark:text-white">
+                                                                        {{ $movement['created_at'] }}
+                                                                    </div>
+                                                                </div>
+                                                            </td>
+
+                                                        </tr>
+                                                        @endforeach
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    @else
+                                    <div class="text-center py-6">
+                                        <div class="text-gray-400 text-3xl mb-2">🔄</div>
+                                        <p class="text-gray-500 text-sm">No hay movimientos registrados para hoy</p>
                                     </div>
                                     @endif
                                 </div>

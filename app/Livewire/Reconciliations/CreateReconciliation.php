@@ -13,6 +13,7 @@ use App\Models\Product;
 use App\Models\Deposit;
 use App\Models\Bill;
 use App\Models\ProductReturn;
+use App\Models\AssignedProductMovement;
 use App\Services\ProductReturnService;
 use App\Enums\ReconciliationStatusEnum;
 use App\Enums\BankEnum;
@@ -70,6 +71,9 @@ class CreateReconciliation extends Component
     public bool $return_affects_inventory = true;
     public array $returns = [];
     
+    // Movement form properties
+    public array $movements = [];
+
     // Remaining products properties
     public array $remaining_products = [];
     
@@ -229,6 +233,7 @@ class CreateReconciliation extends Component
             })->toArray();
         
         $this->loadReturns();
+        $this->loadMovements();
         $this->loadRemainingProducts();
         $this->calculateTotals();
     }
@@ -394,6 +399,12 @@ class CreateReconciliation extends Component
         $this->current_reconciliation = null;
         $this->deposits = [];
         $this->resetDepositForm();
+        $this->bills = [];
+        $this->resetBillForm();
+        $this->returns = [];
+        $this->resetReturnForm();
+        $this->movements = [];
+        $this->remaining_products = [];
     }
     
     protected function getPaymentMethodLabel($paymentMethod): string
@@ -819,6 +830,40 @@ class CreateReconciliation extends Component
             })->toArray();
     }
 
+    public function loadMovements(): void
+    {
+        if (!$this->employee_id || !$this->reconciliation_date) {
+            $this->movements = [];
+            return;
+        }
+
+        $assignedProduct = AssignedProduct::where('employee_id', $this->employee_id)
+            ->whereDate('date', $this->reconciliation_date)
+            ->first();
+
+        if (!$assignedProduct) {
+            $this->movements = [];
+            return;
+        }
+
+        $this->movements = AssignedProductMovement::whereHas('detailAssignedProduct', function ($query) use ($assignedProduct) {
+                $query->where('assigned_products_id', $assignedProduct->id);
+            })
+            ->with(['detailAssignedProduct.product'])
+            ->get()
+            ->map(function ($movement) {
+                return [
+                    'id' => $movement->id,
+                    'product_name' => $movement->detailAssignedProduct->product->name,
+                    'type' => $movement->type->getLabel(),
+                    'type_raw' => $movement->type->value,
+                    'quantity' => $movement->quantity,
+                    'note' => $movement->note,
+                    'created_at' => $movement->created_at->format('H:i:s'),
+                ];
+            })->toArray();
+    }
+
     // Método para cargar productos sobrantes del empleado seleccionado
     public function loadRemainingProducts(): void
     {
@@ -844,7 +889,9 @@ class CreateReconciliation extends Component
                 $quantityAssigned = $detail->quantity;
                 $quantitySold = (int) $detail->sale_quantity ?? 0;
                 $returnedQuantity = (float) $detail->returned_quantity ?? 0;
-                $remaining = $quantityAssigned - $quantitySold - $returnedQuantity;
+                $changesQuantity = (float) $detail->changes_quantity ?? 0;
+                $royaltiesQuantity = (float) $detail->royalties_quantity ?? 0;
+                $remaining = $quantityAssigned - $quantitySold - $returnedQuantity - $changesQuantity - $royaltiesQuantity;
 
                 return [
                     'id' => $detail->id,
@@ -853,6 +900,8 @@ class CreateReconciliation extends Component
                     'quantity_assigned' => $quantityAssigned,
                     'quantity_sold' => $quantitySold,
                     'returned_quantity' => $returnedQuantity,
+                    'changes_quantity' => $changesQuantity,
+                    'royalties_quantity' => $royaltiesQuantity,
                     'remaining' => $remaining,
                 ];
             })
