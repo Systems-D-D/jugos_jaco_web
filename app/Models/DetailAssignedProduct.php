@@ -53,7 +53,7 @@ class DetailAssignedProduct extends Model
     protected function stock(): Attribute
     {
         return Attribute::make(
-            get: fn() => $this->quantity - $this->sale_quantity - $this->returned_quantity - $this->changes_quantity - $this->royalties_quantity,
+            get: fn() => $this->quantity - ($this->sale_quantity + $this->returned_quantity + $this->changes_quantity + $this->royalties_quantity),
         );
     }
 }
