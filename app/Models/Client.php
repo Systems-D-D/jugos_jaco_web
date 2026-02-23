@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\Relations\MorphOne;
+use Illuminate\Support\Facades\Log;
 
 class Client extends Model
 {
@@ -171,6 +172,11 @@ class Client extends Model
         ];
     }
 
+    public function equipment(): HasMany
+    {
+        return $this->hasMany(ClientEquipment::class);
+    }
+
     public function getWhatsappShareUrlAttribute(): string
     {
         if (!$this->location) return '';
@@ -189,6 +195,7 @@ class Client extends Model
 
     public function getProfileImageUrlAttribute(): string
     {
+        Log::info("Profile Image: {$this->profileImage}");
         return $this->profileImage ? asset('storage/' . $this->profileImage->path) : asset('images/avatar.png');
     }
 }
