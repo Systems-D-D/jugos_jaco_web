@@ -44,14 +44,15 @@ class ClientController extends Controller
         try {
             $day = $request->query('day');
             $clients = Client::with([
-                    'location',
-                    'typePrice',
-                    'profileImage',
-                    'accountReceivable' => function ($query) {
-                        $query->where('account_receivables.status', AccountReceivableStatusEnum::PENDING);
-                    }
-                ])
+                'location',
+                'typePrice',
+                'profileImage',
+                'accountReceivable' => function ($query) {
+                    $query->where('account_receivables.status', AccountReceivableStatusEnum::PENDING);
+                }
+            ])
                 ->withVisitDaysForDay($day)
+                ->wherePendingVisitForWeek($day)
                 ->where('employee_id', Auth::user()->employee_id)
                 ->orderByVisitDay($day)
                 ->get();

@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Enums\DepartmentEnum;
 use App\Enums\MunicipalityEnum;
+use Carbon\Carbon;
 use Illuminate\Contracts\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -11,6 +12,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\Relations\MorphOne;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 class Client extends Model
@@ -96,6 +98,11 @@ class Client extends Model
         return $this->hasMany(ClientVisitDay::class);
     }
 
+    public function clientVisits(): HasMany
+    {
+        return $this->hasMany(ClientVisit::class);
+    }
+
     public function sales(): HasMany
     {
         return $this->hasMany(Sale::class);
@@ -134,13 +141,78 @@ class Client extends Model
         }]);
     }
 
+    /**
+     * Scope a query to include only clients that have a pending visit for the current week up to the given day.
+     * 
+     * @param \Illuminate\Database\Eloquent\Builder $query
+     * @param string|null $day
+     * @return \Illuminate\Database\Eloquent\Builder
+     */
+    public function scopeWherePendingVisitForWeek($query, $day = null): Builder
+    {
+        if (!$day) return $query;
+
+        $daysMap = [
+            'Lunes' => 1,
+            'Martes' => 2,
+            'Miércoles' => 3,
+            'Jueves' => 4,
+            'Viernes' => 5,
+            'Sábado' => 6,
+            'Domingo' => 7,
+        ];
+
+        $dayIndex = $daysMap[$day] ?? 0;
+        $startOfWeek = Carbon::now()->startOfWeek(Carbon::MONDAY)->toDateString();
+        $endOfWeek = Carbon::now()->endOfWeek(Carbon::SUNDAY)->toDateString();
+
+        return $query->whereHas('visitDays', function ($q) use ($dayIndex, $startOfWeek, $endOfWeek) {
+            // Map visit_day to index
+            $q->whereRaw("
+                CASE visit_day
+                    WHEN 'Lunes' THEN 1
+                    WHEN 'Martes' THEN 2
+                    WHEN 'Miércoles' THEN 3
+                    WHEN 'Jueves' THEN 4
+                    WHEN 'Viernes' THEN 5
+                    WHEN 'Sábado' THEN 6
+                    WHEN 'Domingo' THEN 7
+                    ELSE 8
+                END <= ?
+            ", [$dayIndex])
+            ->whereNotExists(function ($sub) use ($startOfWeek, $endOfWeek) {
+                $sub->select(DB::raw(1))
+                    ->from('client_visits')
+                    ->whereColumn('client_visits.client_id', 'client_visit_days.client_id')
+                    ->where('client_visits.visited_date', '>=', DB::raw("DATE_ADD('$startOfWeek', INTERVAL (
+                        CASE client_visit_days.visit_day
+                            WHEN 'Lunes' THEN 0
+                            WHEN 'Martes' THEN 1
+                            WHEN 'Miércoles' THEN 2
+                            WHEN 'Jueves' THEN 3
+                            WHEN 'Viernes' THEN 4
+                            WHEN 'Sábado' THEN 5
+                            WHEN 'Domingo' THEN 6
+                            ELSE 0
+                        END
+                    ) DAY)"))
+                    ->where('client_visits.visited_date', '<=', $endOfWeek);
+            });
+        });
+    }
+
     public function scopeOrderByVisitDay($query, $day): Builder
     {
         if (!$day) return $query;
-        return $query->join('client_visit_days', 'clients.id', '=', 'client_visit_days.client_id')
-            ->orderBy('client_visit_days.position')
-            ->where('client_visit_days.visit_day', $day)
-            ->select('clients.*');
+        
+        // Use left join to preserve clients that don't have a visit specifically on $day
+        // (e.g. they are showing up because they missed a previous day)
+        return $query->leftJoin('client_visit_days', function ($join) use ($day) {
+                $join->on('clients.id', '=', 'client_visit_days.client_id')
+                     ->where('client_visit_days.visit_day', '=', $day);
+            })
+            ->select('clients.*')
+            ->orderByRaw('client_visit_days.position IS NULL, client_visit_days.position ASC');
     }
 
     // Scopes
