@@ -134,11 +134,14 @@ class Client extends Model
      */
     public function scopeWithVisitDaysForDay($query, $day = null): Builder
     {
-        if (!$day) return $query->with('visitDays');
+        if (!$day)
+            return $query->with('visitDays');
 
-        return $query->with(['visitDays' => function ($query) use ($day) {
-            $query->where('visit_day', $day);
-        }]);
+        return $query->with([
+            'visitDays' => function ($query) use ($day) {
+                $query->where('visit_day', $day);
+            }
+        ]);
     }
 
     /**
@@ -150,7 +153,8 @@ class Client extends Model
      */
     public function scopeWherePendingVisitForWeek($query, $day = null): Builder
     {
-        if (!$day) return $query;
+        if (!$day)
+            return $query;
 
         $daysMap = [
             'Lunes' => 1,
@@ -180,11 +184,11 @@ class Client extends Model
                     ELSE 8
                 END <= ?
             ", [$dayIndex])
-            ->whereNotExists(function ($sub) use ($startOfWeek, $endOfWeek) {
-                $sub->select(DB::raw(1))
-                    ->from('client_visits')
-                    ->whereColumn('client_visits.client_id', 'client_visit_days.client_id')
-                    ->where('client_visits.visited_date', '>=', DB::raw("DATE_ADD('$startOfWeek', INTERVAL (
+                ->whereNotExists(function ($sub) use ($startOfWeek, $endOfWeek) {
+                    $sub->select(DB::raw(1))
+                        ->from('client_visits')
+                        ->whereColumn('client_visits.client_id', 'client_visit_days.client_id')
+                        ->where('client_visits.visited_date', '>=', DB::raw("DATE_ADD('$startOfWeek', INTERVAL (
                         CASE client_visit_days.visit_day
                             WHEN 'Lunes' THEN 0
                             WHEN 'Martes' THEN 1
@@ -196,21 +200,22 @@ class Client extends Model
                             ELSE 0
                         END
                     ) DAY)"))
-                    ->where('client_visits.visited_date', '<=', $endOfWeek);
-            });
+                        ->where('client_visits.visited_date', '<=', $endOfWeek);
+                });
         });
     }
 
     public function scopeOrderByVisitDay($query, $day): Builder
     {
-        if (!$day) return $query;
-        
+        if (!$day)
+            return $query;
+
         // Use left join to preserve clients that don't have a visit specifically on $day
         // (e.g. they are showing up because they missed a previous day)
         return $query->leftJoin('client_visit_days', function ($join) use ($day) {
-                $join->on('clients.id', '=', 'client_visit_days.client_id')
-                     ->where('client_visit_days.visit_day', '=', $day);
-            })
+            $join->on('clients.id', '=', 'client_visit_days.client_id')
+                ->where('client_visit_days.visit_day', '=', $day);
+        })
             ->select('clients.*')
             ->orderByRaw('client_visit_days.position IS NULL, client_visit_days.position ASC');
     }
@@ -251,7 +256,8 @@ class Client extends Model
 
     public function getWhatsappShareUrlAttribute(): string
     {
-        if (!$this->location) return '';
+        if (!$this->location)
+            return '';
 
         $message = "*Información del Cliente*\n" .
             "Nombre: {$this->full_name}\n" .

@@ -20,19 +20,23 @@ class SaleService
 {
     protected $managementInventoryService;
     protected $accountReceivableService;
+    protected $clientVisitService;
 
     /**
      * Constructor del servicio.
      *
      * @param ManagementInventoryService $managementInventoryService
      * @param AccountReceivableService $accountReceivableService
+     * @param ClientVisitService $clientVisitService
      */
     public function __construct(
         ManagementInventoryService $managementInventoryService,
-        AccountReceivableService $accountReceivableService
+        AccountReceivableService $accountReceivableService,
+        ClientVisitService $clientVisitService
     ) {
         $this->managementInventoryService = $managementInventoryService;
         $this->accountReceivableService = $accountReceivableService;
+        $this->clientVisitService = $clientVisitService;
     }
 
     /**
@@ -57,12 +61,12 @@ class SaleService
             $cashAmount = $saleData['cash_amount'] ?? 0;
             $paymentMethod = $saleData['payment_method'] ?? PaymentTypeEnum::CASH->value;
             $paymentTerm = $saleData['payment_term'] ?? PaymentTermEnum::CASH->value;
-            
+
             // Si el monto pagado es menor al total, se considera venta a crédito
             if ($cashAmount < $finalTotal && $paymentTerm !== PaymentTermEnum::CREDIT->value) {
                 $paymentTerm = PaymentTermEnum::CREDIT->value;
             }
-            
+
             // 3. Determinar el estado de la venta
             $status = SaleStatusEnum::CONFIRMED;
             if ($paymentTerm === PaymentTermEnum::CREDIT->value) {
@@ -85,7 +89,7 @@ class SaleService
                 'notes' => $saleData['notes'] ?? null,
                 'status' => $status,
                 'branch_id' => $saleData['branch_id'],
-                'due_date' => ($paymentTerm === PaymentTermEnum::CREDIT->value) ? 
+                'due_date' => ($paymentTerm === PaymentTermEnum::CREDIT->value) ?
                     ($saleData['due_date'] ?? Carbon::now()->addDays(7)) : null,
                 'created_by' => Auth::id(),
                 'updated_by' => Auth::id(),
@@ -105,6 +109,14 @@ class SaleService
                     amountPaidNow: (float) $cashAmount,
                 );
             }
+
+            // 7. Registrar la visita del día para el cliente
+            $this->clientVisitService->registerVisit(
+                clientId: $sale->client_id,
+                userId: Auth::id(),
+                visitDate: $sale->sale_date,
+                visited: true
+            );
 
             DB::commit();
             return $sale->fresh(['client', 'employee', 'details']);
@@ -129,20 +141,24 @@ class SaleService
             if (isset($productData['origin']) && $productData['origin'] === 'api') {
                 $productosAsignados = AssignedProduct::where('employee_id', Auth::user()->employee->id)
                     ->todayAssignments()
-                    ->with(['details' => function ($query) use ($productData) {
-                        $query->select('id', 'product_id', 'sale_quantity', 'assigned_products_id', 'quantity', 'changes_quantity', 'royalties_quantity')
-                            ->where('product_id', $productData['product_id']);
-                    }])
+                    ->with([
+                        'details' => function ($query) use ($productData) {
+                            $query->select('id', 'product_id', 'sale_quantity', 'assigned_products_id', 'quantity', 'changes_quantity', 'royalties_quantity')
+                                ->where('product_id', $productData['product_id']);
+                        }
+                    ])
                     ->first();
 
                 if ($productosAsignados && $productosAsignados->details->count() > 0) {
                     $detail = $productosAsignados->details->first();
-                    
+
                     if ($detail) {
                         $nSaleQuantity = ($detail->sale_quantity ?? 0) + $detail->changes_quantity + $detail->royalties_quantity + $productData['quantity'];
 
-                        if ($detail->quantity < $nSaleQuantity) throw new Exception(
-                            "La cantidad a vender del producto {$productData['name']} excede la cantidad asignada");
+                        if ($detail->quantity < $nSaleQuantity)
+                            throw new Exception(
+                                "La cantidad a vender del producto {$productData['name']} excede la cantidad asignada"
+                            );
 
                         $detail->update([
                             'sale_quantity' => $nSaleQuantity,
@@ -172,8 +188,8 @@ class SaleService
                 'price_include_tax' => $productData['price_include_tax'] ?? false,
                 'line_subtotal' => $productData['line_subtotal'] ?? ($productData['quantity'] * $productData['unit_price_without_tax']),
                 'line_tax_amount' => $productData['line_tax_amount'] ?? ($productData['quantity'] * ($productData['unit_tax_amount'] ?? 0)),
-                'line_total' => $productData['line_total'] ?? 
-                    ($productData['quantity'] * $productData['unit_price_without_tax']) + 
+                'line_total' => $productData['line_total'] ??
+                    ($productData['quantity'] * $productData['unit_price_without_tax']) +
                     ($productData['quantity'] * ($productData['unit_tax_amount'] ?? 0)),
                 'discount_percentage' => $productData['discount_percentage'] ?? 0,
                 'discount_amount' => $productData['discount_amount'] ?? 0,
@@ -184,7 +200,7 @@ class SaleService
                 $inventoryModel = FinishedProductInventory::find($productData['inventory_id']);
                 if ($inventoryModel) {
                     $baseQuantity = $productData['base_quantity'] ?? $productData['quantity'];
-                    
+
                     $this->managementInventoryService->processMovement(
                         $inventoryModel,
                         $baseQuantity,
@@ -210,13 +226,13 @@ class SaleService
 
         foreach ($products as $product) {
             // Calcular subtotal de línea
-            $lineSubtotal = $product['line_subtotal'] ?? 
+            $lineSubtotal = $product['line_subtotal'] ??
                 ($product['quantity'] * $product['unit_price_without_tax']);
-            
+
             // Calcular impuesto de línea
-            $lineTaxAmount = $product['line_tax_amount'] ?? 
+            $lineTaxAmount = $product['line_tax_amount'] ??
                 ($product['quantity'] * ($product['unit_tax_amount'] ?? 0));
-            
+
             // Acumular totales
             $subtotal += $lineSubtotal;
             $totalTaxes += $lineTaxAmount;

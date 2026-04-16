@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Client;
 use App\Models\ClientVisit;
+use App\Services\ClientVisitService;
 use App\Traits\ApiResponse;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -36,13 +37,12 @@ class ClientVisitController extends Controller
                 );
             }
 
-            // Create new visit
-            $visit = ClientVisit::create([
-                'client_id' => $client->id,
-                'visited' => true,
-                'visited_date' => $today,
-                'user_id' => Auth::user()->id,
-            ]);
+            $visit = app(ClientVisitService::class)->registerVisit(
+                clientId: $client->id,
+                userId: Auth::user()->id,
+                visitDate: $today,
+                visited: true
+            );
 
             return $this->successResponse($visit, 'Visita registrada correctamente.', 201);
 
