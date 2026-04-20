@@ -8,6 +8,7 @@ use App\Http\Controllers\ClientController;
 use App\Http\Controllers\EmployeeController;
 use App\Http\Controllers\ResourceMediaController;
 use App\Http\Controllers\ClientVisitDayController;
+use App\Http\Controllers\ClientVisitController;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\SaleController;
 use App\Http\Controllers\TypePriceController;
@@ -26,6 +27,8 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/{id}/images/business', [ClientController::class, 'getBusinessImages']);
         Route::get('/{id}/image/profile', [ClientController::class, 'getProfileImage']);
         Route::post('/{id}/image/profile', [ClientController::class, 'uploadProfileImage']);
+        Route::post('/{client_id}/visit', [ClientVisitController::class, 'createVisit']);
+        Route::delete('/{client_id}/visit', [ClientVisitController::class, 'deleteVisit']);
         
         Route::patch('/{client_id}/visit-days/reorder', [ClientVisitDayController::class, 'reorderVisitDays']);
         Route::get('/{client_id}/visit-days', [ClientVisitDayController::class, 'getVisitDays']);

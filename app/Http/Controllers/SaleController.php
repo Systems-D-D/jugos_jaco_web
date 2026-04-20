@@ -6,6 +6,7 @@ use App\Http\Requests\SaleRequest;
 use App\Http\Resources\SaleDetailResource;
 use App\Http\Resources\SaleResource;
 use App\Models\DailySalesReconciliation;
+use App\Services\ClientVisitService;
 use Illuminate\Http\Request;
 use App\Models\ProductPrice;
 use App\Models\Sale;
@@ -28,7 +29,7 @@ class SaleController extends Controller
 
     public function __construct()
     {
-        $this->saleService = new SaleService(new ManagementInventoryService(), new AccountReceivableService());
+        $this->saleService = new SaleService(new ManagementInventoryService(), new AccountReceivableService(), new ClientVisitService());
     }
 
     private function validateExistingReconciliation(int $employeeId): void
@@ -52,11 +53,11 @@ class SaleController extends Controller
     {
         try {
             $employeeId = Auth::user()->employee_id;
-            
+
             $this->validateExistingReconciliation($employeeId);
-            
+
             $saleData = $this->prepareSaleData(collect($request->validated())->except('products')->toArray());
-            
+
             $productsSaleData = $this->prepareSaleDetailsData($request['products']);
 
             $sale = $this->saleService->createSale($saleData, $productsSaleData);
@@ -78,7 +79,7 @@ class SaleController extends Controller
     {
         try {
             $date = $request->query('date');
-            
+
             $sales = Sale::toDay($date)
                 ->where('employee_id', Auth::id())
                 ->with([
@@ -87,7 +88,7 @@ class SaleController extends Controller
                 ])
                 ->orderByDesc('created_at')
                 ->get();
-                
+
             return $this->successResponse(SaleResource::collection($sales), "Ventas obtenidas con éxito");
         } catch (Exception $exc) {
             return $this->errorResponse(
@@ -106,17 +107,11 @@ class SaleController extends Controller
     public function getSaleDetailsBySaleId(int $id): JsonResponse
     {
         try {
-            $sale = Sale::with([
-                'client:id,first_name,last_name,business_name',
-                'employee:id,first_name,last_name',
-                'details' // Cargar los detalles de la venta
-            ])->find($id); // Usar find para obtener una sola instancia
-
-            if (!$sale) {
-                return $this->errorResponse(new Exception("Venta no encontrada", 404), 404, "Venta no encontrada");
-            }
-
-            return $this->successResponse(new SaleDetailResource($sale), "Detalles de la venta obtenidos con éxito");
+            $sale = Sale::findOrFail($id);
+            return $this->successResponse([
+                'sale' => new SaleResource($sale),
+                'details' => SaleDetailResource::collection($sale->details)
+            ], "Detalles de la venta obtenidos con éxito");
         } catch (Exception $exc) {
             return $this->errorResponse(
                 $exc,
@@ -157,10 +152,11 @@ class SaleController extends Controller
                 'product:id,name,code'
             ])->find($product['product_price_id']);
 
-            if (!$productPrice) continue; // Skip if product price not found
+            if (!$productPrice)
+                continue; // Skip if product price not found
 
-            $lineSubtotal = $productPrice->getPriceWithoutTax() * (int)$product['quantity'];
-            $lineTaxAmount = $productPrice->getTaxAmount() * (int)$product['quantity'];
+            $lineSubtotal = $productPrice->getPriceWithoutTax() * (int) $product['quantity'];
+            $lineTaxAmount = $productPrice->getTaxAmount() * (int) $product['quantity'];
             $lineTotal = $lineSubtotal + $lineTaxAmount;
 
             $details[] = [
@@ -173,8 +169,8 @@ class SaleController extends Controller
                 'unit_name' => $productPrice->productUnit->unit->name,
                 'unit_abbreviation' => $productPrice->productUnit->unit->abbreviation,
                 'product_unit_id' => $productPrice->product_unit_id,
-                'quantity' => (int)$product['quantity'],
-                'base_quantity' => (int)$product['quantity'],
+                'quantity' => (int) $product['quantity'],
+                'base_quantity' => (int) $product['quantity'],
                 'unit_price_without_tax' => $productPrice->getPriceWithoutTax(),
                 'unit_price_with_tax' => $productPrice->getPriceWithTax(),
                 'unit_tax_amount' => $productPrice->getTaxAmount(),
