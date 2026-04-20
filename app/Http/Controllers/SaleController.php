@@ -115,8 +115,8 @@ class SaleController extends Controller
         } catch (Exception $exc) {
             return $this->errorResponse(
                 $exc,
-                $exc->getCode(),
-                "Ocurrio un error al obtener el detalle de la venta"
+                $exc->getCode() ?: 500,
+                "Ocurrió un error al obtener el detalle de la venta"
             );
         }
     }
