@@ -81,7 +81,7 @@ class SaleController extends Controller
             $date = $request->query('date');
 
             $sales = Sale::toDay($date)
-                ->where('employee_id', Auth::id())
+                ->where('employee_id', Auth::user()->employee_id)
                 ->with([
                     'client:id,first_name,last_name,business_name',
                     'employee:id,first_name,last_name'
