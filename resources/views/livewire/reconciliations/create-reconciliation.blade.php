@@ -1035,6 +1035,11 @@
                                                             </th>
                                                             <th class="fi-ta-header-cell px-3 py-3.5 sm:first-of-type:ps-6 sm:last-of-type:pe-6 text-start">
                                                                 <span class="group flex w-full items-center gap-x-1 whitespace-nowrap justify-start">
+                                                                    <span class="fi-ta-header-cell-label text-sm font-semibold text-gray-950 dark:text-white">Venta</span>
+                                                                </span>
+                                                            </th>
+                                                            <th class="fi-ta-header-cell px-3 py-3.5 sm:first-of-type:ps-6 sm:last-of-type:pe-6 text-start">
+                                                                <span class="group flex w-full items-center gap-x-1 whitespace-nowrap justify-start">
                                                                     <span class="fi-ta-header-cell-label text-sm font-semibold text-gray-950 dark:text-white">Acciones</span>
                                                                 </span>
                                                             </th>
@@ -1076,6 +1081,17 @@
                                                                     <div class="fi-ta-text text-sm leading-6 text-gray-950 dark:text-white">
                                                                         {{ $movement['created_at'] }}
                                                                     </div>
+                                                                </div>
+                                                            </td>
+                                                            <td class="fi-ta-cell p-0 first-of-type:ps-1 last-of-type:pe-1 sm:first-of-type:ps-3 sm:last-of-type:pe-3">
+                                                                <div class="fi-ta-col-wrp px-3 py-4">
+                                                                    @if($movement['sale_id'])
+                                                                        <span class="fi-badge flex items-center justify-center gap-x-1 rounded-md text-xs font-medium ring-1 ring-inset px-2 py-1 fi-color-primary bg-blue-50 text-blue-600 ring-blue-600/10 dark:bg-blue-400/10 dark:text-blue-400 dark:ring-blue-400/30">
+                                                                            {{ $movement['sale_info'] }}
+                                                                        </span>
+                                                                    @else
+                                                                        <span class="text-xs text-gray-400">—</span>
+                                                                    @endif
                                                                 </div>
                                                             </td>
 

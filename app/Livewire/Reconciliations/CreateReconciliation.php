@@ -849,7 +849,7 @@ class CreateReconciliation extends Component
         $this->movements = AssignedProductMovement::whereHas('detailAssignedProduct', function ($query) use ($assignedProduct) {
                 $query->where('assigned_products_id', $assignedProduct->id);
             })
-            ->with(['detailAssignedProduct.product'])
+            ->with(['detailAssignedProduct.product', 'sale'])
             ->get()
             ->map(function ($movement) {
                 return [
@@ -860,6 +860,8 @@ class CreateReconciliation extends Component
                     'quantity' => $movement->quantity,
                     'note' => $movement->note,
                     'created_at' => $movement->created_at->format('H:i:s'),
+                    'sale_id' => $movement->sale_id,
+                    'sale_info' => $movement->sale?->full_invoice_number ?? ($movement->sale_id ? "#{$movement->sale_id}" : null),
                 ];
             })->toArray();
     }

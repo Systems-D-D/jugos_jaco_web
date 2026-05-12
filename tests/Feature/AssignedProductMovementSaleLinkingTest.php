@@ -12,6 +12,7 @@ use App\Services\AssignedProductMovementService;
 use App\Services\SaleService;
 use Exception;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Livewire\Livewire;
 
 uses(RefreshDatabase::class);
 
@@ -511,4 +512,88 @@ it('accepts missing movement_type field', function () {
     ]);
 
     $response->assertJsonMissingValidationErrors(['products.0.movement_type']);
+});
+
+// --- Task 5: Reconciliation tests ---
+
+it('includes sale info in reconciliation movements when movement has sale_id', function () {
+    $user = User::factory()->create();
+    $this->actingAs($user);
+
+    $product = Product::factory()->create(['name' => 'Jugo Naranja', 'is_active' => true]);
+    $employee = Employee::factory()->create();
+
+    $assignedProduct = AssignedProduct::factory()->create([
+        'employee_id' => $employee->id,
+        'date' => now(),
+    ]);
+    $detail = DetailAssignedProduct::factory()->create([
+        'assigned_products_id' => $assignedProduct->id,
+        'product_id' => $product->id,
+        'quantity' => 50,
+    ]);
+
+    $sale = Sale::factory()->create([
+        'employee_id' => $employee->id,
+        'sale_date' => now(),
+        'status' => 'confirmed',
+        'subtotal' => 100,
+        'total_amount' => 100,
+    ]);
+
+    AssignedProductMovement::create([
+        'detail_assigned_product_id' => $detail->id,
+        'type' => 'change',
+        'quantity' => 5,
+        'sale_id' => $sale->id,
+        'created_by' => $user->id,
+    ]);
+
+    $component = Livewire::test(\App\Livewire\Reconciliations\CreateReconciliation::class, [
+        'employee_id' => $employee->id,
+    ]);
+    $component->call('loadMovements');
+
+    $movements = $component->get('movements');
+
+    expect($movements)->toHaveCount(1);
+    expect($movements[0]['sale_id'])->toEqual($sale->id);
+    expect($movements[0]['sale_info'])->not->toBeNull();
+});
+
+it('shows null sale info in reconciliation when movement has no sale_id', function () {
+    $user = User::factory()->create();
+    $this->actingAs($user);
+
+    $product = Product::factory()->create(['name' => 'Jugo Naranja', 'is_active' => true]);
+    $employee = Employee::factory()->create();
+
+    $assignedProduct = AssignedProduct::factory()->create([
+        'employee_id' => $employee->id,
+        'date' => now(),
+    ]);
+    $detail = DetailAssignedProduct::factory()->create([
+        'assigned_products_id' => $assignedProduct->id,
+        'product_id' => $product->id,
+        'quantity' => 50,
+    ]);
+
+    AssignedProductMovement::create([
+        'detail_assigned_product_id' => $detail->id,
+        'type' => 'royalty',
+        'quantity' => 3,
+        'sale_id' => null,
+        'created_by' => $user->id,
+    ]);
+
+    $component = Livewire::test(\App\Livewire\Reconciliations\CreateReconciliation::class, [
+        'employee_id' => $employee->id,
+    ]);
+    $component->call('loadMovements');
+
+    $movements = $component->get('movements');
+
+    expect($movements)->toHaveCount(1);
+    expect($movements[0]['sale_id'])->toBeNull();
+    expect($movements[0]['sale_info'])->toBeNull();
 });
