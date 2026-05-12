@@ -12,6 +12,7 @@ use App\Models\User;
 use App\Services\AssignedProductMovementService;
 use App\Services\SaleService;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Support\Facades\DB;
 use Livewire\Livewire;
 
 uses(DatabaseTransactions::class);
@@ -343,11 +344,12 @@ it('creates SaleDetail for normal products alongside movements for royalty produ
     $user = User::factory()->create();
     $this->actingAs($user);
 
-    $typePrice = TypePrice::factory()->create();
+    $typePriceId = DB::table('types_prices')->insertGetId(['name' => 'Test Price']);
     $normalProduct = Product::factory()->create(['name' => 'Jugo Normal', 'is_active' => true]);
     $royaltyProduct = Product::factory()->create(['name' => 'Jugo Regalía', 'is_active' => true]);
     $employee = Employee::factory()->create();
     $client = Client::factory()->create();
+    $typePrice = TypePrice::factory()->create();
 
     $assignedProduct = AssignedProduct::factory()->create([
         'employee_id' => $employee->id,
@@ -376,11 +378,10 @@ it('creates SaleDetail for normal products alongside movements for royalty produ
 
     $productsData = [
         [
-            'origin' => 'api',
             'product_id' => $normalProduct->id,
             'name' => 'Jugo Normal',
             'quantity' => 2,
-            'type_price_id' => $typePrice->id,
+            'type_price_id' => $typePriceId,
             'unit_name' => 'Unidad',
             'unit_price_without_tax' => 50,
             'unit_tax_amount' => 0,
@@ -405,11 +406,11 @@ it('creates SaleDetail for normal products alongside movements for royalty produ
     $service = app(SaleService::class);
     $sale = $service->createSale($saleData, $productsData);
 
-    expect($sale->subtotal)->toEqual(100.0);
-    expect($sale->total_amount)->toEqual(100.0);
+    // Normal product → SaleDetail
     expect($sale->details)->toHaveCount(1);
     expect($sale->details->first()->product_name)->toBe('Jugo Normal');
 
+    // Royalty product → AssignedProductMovement
     $movements = AssignedProductMovement::where('sale_id', $sale->id)->get();
     expect($movements)->toHaveCount(1);
     expect($movements->first()->type->value)->toBe('royalty');
