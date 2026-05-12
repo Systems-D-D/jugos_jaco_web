@@ -17,7 +17,7 @@ class EmployeeFactory extends Factory
         return [
             'first_name' => fake()->firstName(),
             'last_name' => fake()->lastName(),
-            'branch_id' => 1,
+            'branch_id' => BranchFactory::new(),
         ];
     }
 }

@@ -10,7 +10,6 @@ use App\Models\Sale;
 use App\Models\User;
 use App\Services\AssignedProductMovementService;
 use App\Services\SaleService;
-use Exception;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
 
