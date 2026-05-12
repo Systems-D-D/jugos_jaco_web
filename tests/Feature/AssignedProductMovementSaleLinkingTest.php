@@ -410,3 +410,105 @@ it('creates SaleDetail for normal products alongside movements for royalty produ
     expect($movements)->toHaveCount(1);
     expect($movements->first()->type->value)->toBe('royalty');
 });
+
+// --- Task 4: API Layer tests ---
+
+it('validates movement_type must be a valid enum value', function () {
+    $user = User::factory()->create();
+    $this->actingAs($user);
+
+    $product = Product::factory()->create(['name' => 'Test', 'is_active' => true]);
+
+    $response = $this->postJson('/api/sales', [
+        'client_id' => 1,
+        'employee_id' => 1,
+        'payment_term' => 'cash',
+        'payment_method' => 'cash',
+        'cash_amount' => 100,
+        'products' => [
+            [
+                'product_id' => $product->id,
+                'product_price_id' => 1,
+                'quantity' => 1,
+                'movement_type' => 'invalid_type',
+            ],
+        ],
+    ]);
+
+    $response->assertStatus(422);
+    $response->assertJsonValidationErrors(['products.0.movement_type']);
+});
+
+it('accepts valid movement_type values', function () {
+    $user = User::factory()->create();
+    $this->actingAs($user);
+
+    $product = Product::factory()->create(['name' => 'Test', 'is_active' => true]);
+
+    $response = $this->postJson('/api/sales', [
+        'client_id' => 1,
+        'employee_id' => 1,
+        'payment_term' => 'cash',
+        'payment_method' => 'cash',
+        'cash_amount' => 100,
+        'products' => [
+            [
+                'product_id' => $product->id,
+                'product_price_id' => 1,
+                'quantity' => 1,
+                'movement_type' => 'royalty',
+            ],
+        ],
+    ]);
+
+    $response->assertJsonMissingValidationErrors(['products.0.movement_type']);
+});
+
+it('accepts null movement_type', function () {
+    $user = User::factory()->create();
+    $this->actingAs($user);
+
+    $product = Product::factory()->create(['name' => 'Test', 'is_active' => true]);
+
+    $response = $this->postJson('/api/sales', [
+        'client_id' => 1,
+        'employee_id' => 1,
+        'payment_term' => 'cash',
+        'payment_method' => 'cash',
+        'cash_amount' => 100,
+        'products' => [
+            [
+                'product_id' => $product->id,
+                'product_price_id' => 1,
+                'quantity' => 1,
+                'movement_type' => null,
+            ],
+        ],
+    ]);
+
+    $response->assertJsonMissingValidationErrors(['products.0.movement_type']);
+});
+
+it('accepts missing movement_type field', function () {
+    $user = User::factory()->create();
+    $this->actingAs($user);
+
+    $product = Product::factory()->create(['name' => 'Test', 'is_active' => true]);
+
+    $response = $this->postJson('/api/sales', [
+        'client_id' => 1,
+        'employee_id' => 1,
+        'payment_term' => 'cash',
+        'payment_method' => 'cash',
+        'cash_amount' => 100,
+        'products' => [
+            [
+                'product_id' => $product->id,
+                'product_price_id' => 1,
+                'quantity' => 1,
+            ],
+        ],
+    ]);
+
+    $response->assertJsonMissingValidationErrors(['products.0.movement_type']);
+});

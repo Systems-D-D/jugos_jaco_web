@@ -188,8 +188,9 @@ class SaleController extends Controller
                 'line_tax_amount' => $lineTaxAmount,
                 'line_total' => $lineTotal,
                 'discount_percentage' => $product['discount_percentage'] ?? 0,
-                'discount_amount' => ($lineTotal * ($product['discount_percentage'] ?? 0)) / 100,
-            ];
+            'discount_amount' => ($lineTotal * ($product['discount_percentage'] ?? 0)) / 100,
+            'movement_type' => $product['movement_type'] ?? null,
+        ];
         }
         return $details;
     }
