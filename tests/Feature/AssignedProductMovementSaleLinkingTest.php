@@ -378,6 +378,8 @@ it('creates SaleDetail for normal products alongside movements for royalty produ
             'product_id' => $normalProduct->id,
             'name' => 'Jugo Normal',
             'quantity' => 2,
+            'type_price_id' => 1,
+            'unit_name' => 'Unidad',
             'unit_price_without_tax' => 50,
             'unit_tax_amount' => 0,
             'line_subtotal' => 100,
