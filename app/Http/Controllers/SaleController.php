@@ -12,6 +12,7 @@ use App\Models\ProductPrice;
 use App\Models\Sale;
 use App\Models\SaleDetail;
 use App\Services\AccountReceivableService;
+use App\Services\AssignedProductMovementService;
 use App\Services\ManagementInventoryService;
 use App\Services\SaleService;
 use App\Traits\ApiResponse;
@@ -29,7 +30,12 @@ class SaleController extends Controller
 
     public function __construct()
     {
-        $this->saleService = new SaleService(new ManagementInventoryService(), new AccountReceivableService(), new ClientVisitService());
+        $this->saleService = new SaleService(
+            new ManagementInventoryService(),
+            new AccountReceivableService(),
+            new ClientVisitService(),
+            new AssignedProductMovementService()
+        );
     }
 
     private function validateExistingReconciliation(int $employeeId): void
