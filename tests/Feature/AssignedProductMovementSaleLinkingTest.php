@@ -10,10 +10,10 @@ use App\Models\Sale;
 use App\Models\User;
 use App\Services\AssignedProductMovementService;
 use App\Services\SaleService;
-use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Livewire\Livewire;
 
-uses(RefreshDatabase::class);
+uses(DatabaseTransactions::class);
 
 // --- Task 2: AssignedProductMovementService tests ---
 
