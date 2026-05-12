@@ -7,6 +7,7 @@ use App\Models\DetailAssignedProduct;
 use App\Models\Employee;
 use App\Models\Product;
 use App\Models\Sale;
+use App\Models\TypePrice;
 use App\Models\User;
 use App\Services\AssignedProductMovementService;
 use App\Services\SaleService;
@@ -342,6 +343,7 @@ it('creates SaleDetail for normal products alongside movements for royalty produ
     $user = User::factory()->create();
     $this->actingAs($user);
 
+    $typePrice = TypePrice::factory()->create();
     $normalProduct = Product::factory()->create(['name' => 'Jugo Normal', 'is_active' => true]);
     $royaltyProduct = Product::factory()->create(['name' => 'Jugo Regalía', 'is_active' => true]);
     $employee = Employee::factory()->create();
@@ -378,7 +380,7 @@ it('creates SaleDetail for normal products alongside movements for royalty produ
             'product_id' => $normalProduct->id,
             'name' => 'Jugo Normal',
             'quantity' => 2,
-            'type_price_id' => 1,
+            'type_price_id' => $typePrice->id,
             'unit_name' => 'Unidad',
             'unit_price_without_tax' => 50,
             'unit_tax_amount' => 0,
