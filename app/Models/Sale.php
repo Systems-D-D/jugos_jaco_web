@@ -99,6 +99,11 @@ class Sale extends Model
         return $this->hasOne(AccountReceivable::class, 'sales_id');
     }
 
+    public function assignedProductMovements(): HasMany
+    {
+        return $this->hasMany(AssignedProductMovement::class);
+    }
+
     public function scopeDraft($query)
     {
         return $query->where('status', SaleStatusEnum::DRAFT);
