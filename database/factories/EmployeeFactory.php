@@ -17,6 +17,9 @@ class EmployeeFactory extends Factory
         return [
             'first_name' => fake()->firstName(),
             'last_name' => fake()->lastName(),
+            'phone_number' => fake()->numerify('########'),
+            'address' => fake()->address(),
+            'identity' => fake()->unique()->numerify('#############'),
             'branch_id' => BranchFactory::new(),
         ];
     }

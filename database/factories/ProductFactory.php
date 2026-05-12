@@ -17,7 +17,11 @@ class ProductFactory extends Factory
         return [
             'name' => fake()->unique()->words(3, true),
             'code' => fake()->unique()->bothify('PROD-####'),
+            'content_type' => 'Unidad',
+            'content' => '1',
+            'cost' => fake()->randomFloat(2, 1, 100),
             'is_active' => true,
+            'category_id' => CategoryFactory::new(),
         ];
     }
 }

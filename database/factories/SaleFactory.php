@@ -23,8 +23,8 @@ class SaleFactory extends Factory
             'total_amount' => 100,
             'payment_method' => 'cash',
             'payment_term' => 'cash',
-            'created_by' => 1,
-            'updated_by' => 1,
+            'created_by' => UserFactory::new(),
+            'updated_by' => UserFactory::new(),
         ];
     }
 }

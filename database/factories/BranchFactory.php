@@ -16,6 +16,7 @@ class BranchFactory extends Factory
     {
         return [
             'name' => fake()->city(),
+            'address' => fake()->address(),
         ];
     }
 }
