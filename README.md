@@ -1,66 +1,136 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# Jugos Jaco
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+Sistema ERP/CRM para la gestión de distribución y ventas de jugos. Aplicación monolítica con panel administrativo (Filament) y API REST para app móvil de vendedores en campo.
 
-## About Laravel
+## Stack Tecnológico
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+| Capa | Tecnología |
+|------|-----------|
+| Backend | PHP 8.2+, Laravel 11 |
+| Panel Admin | Filament v3 + Livewire |
+| Estilos | Tailwind CSS 3.4 + PostCSS |
+| Base de Datos | MySQL (relacional) + Eloquent ORM |
+| API Auth | Laravel Sanctum |
+| Roles/Permisos | Spatie Laravel Permission |
+| Testing | Pest PHP |
+| Formateo | Laravel Pint |
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+## Funcionalidades Principales
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+- **Gestión de Clientes**: registro con ubicación GPS (Plus Code), equipamiento, asignación a empleados y turnos de visita programados.
+- **Fuerza de Ventas en Campo**: registro de visitas, tracking GPS, asignación diaria de productos a vendedores.
+- **Punto de Venta**: búsqueda de productos, carrito, cálculo de impuestos hondureños, múltiples formas de pago (efectivo, crédito, depósito, tarjeta), descuento de inventario.
+- **Cuadre de Caja Diario**: conciliación por empleado — ventas al contado/crédito, cobros, depósitos, gastos (facturas), retornos de producto, sobrantes de producto asignado.
+- **Inventarios**: producto terminado por sucursal, materia prima y bitácora de movimientos (entradas, salidas, daños, devoluciones).
+- **Cuentas por Cobrar**: seguimiento de ventas al crédito con estados (pendiente, pagado, vencido), pagos parciales/totales.
+- **Precios por Escala**: múltiples listas de precios por tipo de cliente y unidad de medida, actualización masiva.
+- **Dashboard**: widgets de KPIs visibles según rol (superadmin, administrador, cajero).
+- **Mapa Interactivo**: geolocalización de clientes y empleados.
+- **Sucursales**: multi-sucursal con inventario por sucursal.
 
-## Learning Laravel
+## Requisitos del Sistema
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
+- PHP 8.2 o superior
+- MySQL 8.0 o superior
+- Composer
+- Node.js 18+ (para assets frontend)
 
-You may also try the [Laravel Bootcamp](https://bootcamp.laravel.com), where you will be guided through building a modern Laravel application from scratch.
+## Instalación
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+```bash
+# Clonar repositorio
+git clone <repo-url> jugos_jaco_web
+cd jugos_jaco_web
 
-## Laravel Sponsors
+# Instalar dependencias PHP
+composer install
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the [Laravel Partners program](https://partners.laravel.com).
+# Instalar dependencias frontend y compilar
+npm install
+npm run build
 
-### Premium Partners
+# Copiar variables de entorno
+cp .env.example .env
 
-- **[Vehikl](https://vehikl.com/)**
-- **[Tighten Co.](https://tighten.co)**
-- **[WebReinvent](https://webreinvent.com/)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel/)**
-- **[Cyber-Duck](https://cyber-duck.co.uk)**
-- **[DevSquad](https://devsquad.com/hire-laravel-developers)**
-- **[Jump24](https://jump24.co.uk)**
-- **[Redberry](https://redberry.international/laravel/)**
-- **[Active Logic](https://activelogic.com)**
-- **[byte5](https://byte5.de)**
-- **[OP.GG](https://op.gg)**
+# Configurar conexión a base de datos en .env
+# DB_DATABASE=jugos_jaco_web
+# DB_USERNAME=tu_usuario
+# DB_PASSWORD=tu_contraseña
 
-## Contributing
+# Generar clave de aplicación
+php artisan key:generate
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+# Ejecutar migraciones y seeders
+php artisan migrate --seed
 
-## Code of Conduct
+# Iniciar servidor de desarrollo
+composer run dev
+```
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+El panel administrativo estará disponible en `http://localhost:8000`.
 
-## Security Vulnerabilities
+## Ejecutar en Desarrollo
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+```bash
+# Inicia servidor, cola, y Vite simultáneamente
+composer run dev
+# o manualmente:
+php artisan serve &
+php artisan queue:work &
+npm run dev
+```
 
-## License
+## Estructura del Proyecto
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+```
+app/
+├── Enums/              # Enumeraciones (bancos, municipios, estados, roles)
+├── Filament/
+│   ├── Pages/          # Páginas personalizadas (Mapa, Gestor de Turnos)
+│   ├── Resources/      # CRUDs del panel admin (21 recursos)
+│   └── Widgets/        # Widgets del dashboard
+├── Http/
+│   └── Controllers/    # API y controladores web
+├── Models/             # Modelos Eloquent (33 modelos)
+├── Services/           # Lógica de negocio (12 servicios)
+└── Traits/             # ApiResponse trait
+```
+
+## API REST
+
+Autenticación vía Sanctum (Bearer token). Endpoints disponibles:
+
+| Módulo | Endpoints |
+|--------|-----------|
+| Clientes | CRUD, imágenes, visitas, días de visita |
+| Empleados | Datos, ubicación GPS |
+| Ventas | Crear, listar, detalle |
+| Productos | Listar, asignados, movimientos |
+| Cuentas por Cobrar | Listar, pagos, cobros del día |
+| Tipos de Precio | Listar |
+
+## Pruebas
+
+```bash
+php artisan test
+# o
+./vendor/bin/pest
+```
+
+## Roles del Sistema
+
+| Rol | Acceso |
+|-----|--------|
+| Superadministrador | Acceso total al panel, todos los widgets |
+| Administrador | Gestión completa (excepto registro de sistema) |
+| Empleado | Sin acceso al panel (usa API móvil) |
+| Cajero | Ventas, inventarios — solo ve sus clientes asignados |
+
+## Convenciones de Código
+
+- **Modelos**: PascalCase singular (`ClientVisit`, `ProductPrice`)
+- **Tablas**: snake_case plural (`client_visits`, `product_prices`)
+- **Controladores**: PascalCase terminado en `Controller`
+- **Rutas API**: kebab-case agrupadas por entidad
+- **Respuestas API**: estandarizadas mediante `ApiResponse` trait
+- **Arquitectura**: "Fat Models, Skinny Controllers" — lógica de consulta en scopes Eloquent y Services
