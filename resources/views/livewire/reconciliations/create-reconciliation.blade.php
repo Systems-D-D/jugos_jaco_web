@@ -1224,6 +1224,17 @@
                                     </div>
                                     </li>
                                     
+                                    <!-- Total Efectivo Producto Faltante -->
+                                    <li class="fi-ta-item p-2 hover:bg-gray-50 dark:hover:bg-gray-700 bg-amber-50/50 dark:bg-amber-400/5">
+                                        <div class="flex justify-between items-center">
+                                            <div class="flex items-center gap-x-1">
+                                                <span class="fi-section-header-icon flex items-center justify-center rounded-md bg-amber-50 p-0.5 text-amber-500 dark:bg-amber-500/10 dark:text-amber-400 text-sm">💎</span>
+                                                <span class="text-sm font-medium text-gray-950 dark:text-white">Total Efectivo Prod. Faltante</span>
+                                            </div>
+                                            <span class="font-semibold text-amber-600 dark:text-amber-400">L {{ number_format($product_shortage_total, 2) }}</span>
+                                        </div>
+                                    </li>
+                                    
                                     <!-- Efectivo Esperado -->
                                     <li class="fi-ta-item p-2 hover:bg-gray-50 dark:hover:bg-gray-700">
                                         <div class="flex justify-between items-center">
