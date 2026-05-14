@@ -67,6 +67,8 @@ it('calculates product shortage cash correctly', function () {
     // remaining = 100 - 70 - 0 - 0 - 0 = 30
     // shortage_cash = 30 * 25.00 = 750.00
     
+    $this->actingAs($this->user);
+    
     Livewire::test(CreateReconciliation::class, ['employee_id' => $this->employee->id])
         ->assertSet('remaining_products', function ($products) {
             return count($products) === 1 && $products[0]['remaining'] == 30;
@@ -79,6 +81,8 @@ it('calculates product shortage cash correctly', function () {
 
 // TypePrice change recalculates
 it('recalculates when type_price changes', function () {
+    $this->actingAs($this->user);
+    
     Livewire::test(CreateReconciliation::class, ['employee_id' => $this->employee->id])
         ->set('type_price_id', $this->typePrice->id)
         ->assertSet('product_shortage_total', 750.00)
@@ -88,6 +92,8 @@ it('recalculates when type_price changes', function () {
 
 // Total included in expected cash
 it('adds shortage total to expected cash', function () {
+    $this->actingAs($this->user);
+    
     Livewire::test(CreateReconciliation::class, ['employee_id' => $this->employee->id])
         ->set('type_price_id', $this->typePrice->id)
         ->assertSet('total_cash_expected', 750.00);
@@ -95,6 +101,8 @@ it('adds shortage total to expected cash', function () {
 
 // Persistence
 it('persists product_shortage_total and type_price_id on save', function () {
+    $this->actingAs($this->user);
+    
     Livewire::test(CreateReconciliation::class, ['employee_id' => $this->employee->id])
         ->set('type_price_id', $this->typePrice->id)
         ->set('cash_received', 1000.00)
@@ -109,6 +117,8 @@ it('persists product_shortage_total and type_price_id on save', function () {
 
 // Edge case: no type price selected
 it('sets shortage to zero when no type_price selected', function () {
+    $this->actingAs($this->user);
+    
     Livewire::test(CreateReconciliation::class, ['employee_id' => $this->employee->id])
         ->assertSet('product_shortage_total', 0.0)
         ->set('type_price_id', null)
@@ -121,6 +131,8 @@ it('sets shortage to zero when no products remaining', function () {
         'sale_quantity' => 100,
         'returned_quantity' => 0,
     ]);
+    
+    $this->actingAs($this->user);
     
     Livewire::test(CreateReconciliation::class, ['employee_id' => $this->employee->id])
         ->set('type_price_id', $this->typePrice->id)
