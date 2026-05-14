@@ -579,7 +579,18 @@
                                             {{ count($remaining_products) }} producto(s)
                                         </div>
                                     </div>
-                                    <div class="flex items-center gap-x-2">
+                                    <div class="flex items-center gap-x-3">
+                                        <div class="flex items-center gap-x-2">
+                                            <label class="text-sm font-medium text-gray-700 dark:text-gray-300 whitespace-nowrap">Precios:</label>
+                                            <select wire:model.live="type_price_id"
+                                                class="fi-select-input block rounded-md border-gray-300 shadow-sm outline-none focus:ring-2 focus:ring-primary-600 focus:border-primary-600 text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200">
+                                                <option value="">Sin escala</option>
+                                                @foreach($type_prices as $tp)
+                                                    <option value="{{ $tp['id'] }}">{{ $tp['name'] }}</option>
+                                                @endforeach
+                                            </select>
+                                        </div>
+                                        
                                         <button type="button" 
                                             wire:click="returnAllRemainingProducts"
                                             wire:loading.attr="disabled"
@@ -595,19 +606,14 @@
                                 </div>
                                 
                                 <div class="fi-section-content p-6 pt-0">
-                                    <div class="overflow-hidden">
-                                        <div class="fi-ta-ctn divide-y divide-gray-200 overflow-hidden rounded-xl bg-white shadow-sm ring-1 ring-gray-950/5 dark:divide-white/5 dark:bg-gray-900 dark:ring-white/10">
+                                    <div class="overflow-hidden" style="max-height: 225px;">
+                                        <div class="fi-ta-ctn divide-y divide-gray-200 overflow-auto rounded-xl bg-white shadow-sm ring-1 ring-gray-950/5 dark:divide-white/5 dark:bg-gray-900 dark:ring-white/10">
                                             <table class="fi-ta-table w-full table-auto divide-y divide-gray-200 text-start dark:divide-white/5">
                                                 <thead class="fi-ta-header divide-y divide-gray-200 dark:divide-white/5">
                                                     <tr class="bg-gray-50 dark:bg-white/5">
                                                         <th class="fi-ta-header-cell px-3 py-3.5 sm:first-of-type:ps-6 sm:last-of-type:pe-6 text-start">
                                                             <span class="group flex w-full items-center gap-x-1 whitespace-nowrap justify-start">
                                                                 <span class="fi-ta-header-cell-label text-sm font-semibold text-gray-950 dark:text-white">Producto</span>
-                                                            </span>
-                                                        </th>
-                                                        <th class="fi-ta-header-cell px-3 py-3.5 sm:first-of-type:ps-6 sm:last-of-type:pe-6 text-start">
-                                                            <span class="group flex w-full items-center gap-x-1 whitespace-nowrap justify-start">
-                                                                <span class="fi-ta-header-cell-label text-sm font-semibold text-gray-950 dark:text-white">Código</span>
                                                             </span>
                                                         </th>
                                                         <th class="fi-ta-header-cell px-3 py-3.5 sm:first-of-type:ps-6 sm:last-of-type:pe-6 text-center">
@@ -630,6 +636,11 @@
                                                                 <span class="fi-ta-header-cell-label text-sm font-semibold text-gray-950 dark:text-white">Sobrante</span>
                                                             </span>
                                                         </th>
+                                                        <th class="fi-ta-header-cell px-3 py-3.5 sm:first-of-type:ps-6 sm:last-of-type:pe-6 text-center">
+                                                            <span class="group flex w-full items-center gap-x-1 whitespace-nowrap justify-center">
+                                                                <span class="fi-ta-header-cell-label text-sm font-semibold text-gray-950 dark:text-white">Efectivo Prod. Falt.</span>
+                                                            </span>
+                                                        </th>
                                                     </tr>
                                                 </thead>
                                                 <tbody class="fi-ta-body divide-y divide-gray-200 whitespace-nowrap dark:divide-white/5">
@@ -637,15 +648,11 @@
                                                     <tr class="fi-ta-row [@media(hover:hover)]:transition [@media(hover:hover)]:duration-75 hover:bg-gray-50 dark:hover:bg-white/5">
                                                         <td class="fi-ta-cell p-0 first-of-type:ps-1 last-of-type:pe-1 sm:first-of-type:ps-3 sm:last-of-type:pe-3">
                                                             <div class="fi-ta-col-wrp px-3 py-4">
-                                                                <div class="fi-ta-text text-sm leading-6 text-gray-950 dark:text-white font-medium">
+                                                                <div class="fi-ta-text text-sm leading-6 text-gray-950 dark:text-white font-medium flex items-center gap-x-2">
                                                                     {{ $product['product_name'] }}
-                                                                </div>
-                                                            </div>
-                                                        </td>
-                                                        <td class="fi-ta-cell p-0 first-of-type:ps-1 last-of-type:pe-1 sm:first-of-type:ps-3 sm:last-of-type:pe-3">
-                                                            <div class="fi-ta-col-wrp px-3 py-4">
-                                                                <div class="fi-badge inline-flex items-center gap-x-1 rounded-md px-2 py-1 text-xs font-medium ring-1 ring-inset bg-gray-50 text-gray-600 ring-gray-500/10 dark:bg-gray-400/10 dark:text-gray-400 dark:ring-gray-400/20">
-                                                                    {{ $product['product_code'] }}
+                                                                    <span class="fi-badge inline-flex items-center rounded-md px-1.5 py-0.5 text-xs font-medium ring-1 ring-inset bg-gray-50 text-gray-600 ring-gray-500/10 dark:bg-gray-400/10 dark:text-gray-400 dark:ring-gray-400/20">
+                                                                        {{ $product['product_code'] }}
+                                                                    </span>
                                                                 </div>
                                                             </div>
                                                         </td>
@@ -692,6 +699,13 @@
                                                             <div class="fi-ta-col-wrp px-3 py-4 text-center">
                                                                 <div class="fi-badge inline-flex items-center gap-x-1 rounded-md px-2 py-1 text-sm font-bold ring-1 ring-inset {{ $product['remaining'] > 0 ? 'bg-amber-50 text-amber-700 ring-amber-600/10 dark:bg-amber-400/10 dark:text-amber-400 dark:ring-amber-400/30' : 'bg-green-50 text-green-700 ring-green-600/10 dark:bg-green-400/10 dark:text-green-400 dark:ring-green-400/30' }}">
                                                                     {{ $product['remaining'] }}
+                                                                </div>
+                                                            </div>
+                                                        </td>
+                                                        <td class="fi-ta-cell p-0 first-of-type:ps-1 last-of-type:pe-1 sm:first-of-type:ps-3 sm:last-of-type:pe-3">
+                                                            <div class="fi-ta-col-wrp px-3 py-4 text-center">
+                                                                <div class="fi-ta-text text-sm font-semibold leading-6 {{ ($product['shortage_cash'] ?? 0) > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-gray-400 dark:text-gray-500' }}">
+                                                                    L {{ number_format($product['shortage_cash'] ?? 0, 2) }}
                                                                 </div>
                                                             </div>
                                                         </td>
