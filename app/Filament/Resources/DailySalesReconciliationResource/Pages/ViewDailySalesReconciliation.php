@@ -207,6 +207,25 @@ class ViewDailySalesReconciliation extends ViewRecord
                                     ->extraAttributes(['class' => 'text-center p-4 bg-blue-50 rounded-lg border border-blue-200']),
                             ]),
                         
+                        TextEntry::make('product_shortage_total')
+                            ->label('💎 Efectivo Prod. Faltante')
+                            ->money('HNL')
+                            ->weight(FontWeight::Bold)
+                            ->size('lg')
+                            ->color('warning')
+                            ->placeholder('L 0.00')
+                            ->hidden(fn ($record) => !$record->product_shortage_total)
+                            ->extraAttributes(['class' => 'text-center p-4 bg-amber-50 rounded-lg border border-amber-200']),
+                        
+                        TextEntry::make('typePrice.name')
+                            ->label('🏷️ Escala de Precios')
+                            ->weight(FontWeight::Medium)
+                            ->size('lg')
+                            ->placeholder('No seleccionada')
+                            ->color('gray')
+                            ->hidden(fn ($record) => !$record->type_price_id)
+                            ->extraAttributes(['class' => 'text-center p-4 bg-gray-50 rounded-lg border border-gray-200']),
+                        
                         // Alertas de diferencias
                         Grid::make(2)
                             ->schema([
