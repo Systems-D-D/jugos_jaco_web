@@ -164,7 +164,7 @@ class SaleService
                     $detail = $productosAsignados->details->first();
 
                     if ($detail) {
-                        $nSaleQuantity = ($detail->sale_quantity ?? 0) + $detail->changes_quantity + $detail->royalties_quantity + $productData['quantity'];
+                        $nSaleQuantity = ($detail->sale_quantity ?? 0) + $productData['quantity'];
 
                         if ($detail->quantity < $nSaleQuantity)
                             throw new Exception(
