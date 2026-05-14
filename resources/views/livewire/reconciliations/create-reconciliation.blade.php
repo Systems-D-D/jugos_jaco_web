@@ -581,8 +581,8 @@
                                     </div>
                                     <div class="flex items-center gap-x-3">
                                         <div class="flex items-center gap-x-2">
-                                            <label class="text-sm font-medium text-gray-700 dark:text-gray-300 whitespace-nowrap">Precios:</label>
-                                            <select wire:model.live="type_price_id"
+                                            <label for="type-price-select" class="text-sm font-medium text-gray-700 dark:text-gray-300 whitespace-nowrap">Precios:</label>
+                                            <select id="type-price-select" wire:model.live="type_price_id"
                                                 class="fi-select-input block rounded-md border-gray-300 shadow-sm outline-none focus:ring-2 focus:ring-primary-600 focus:border-primary-600 text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200">
                                                 <option value="">Sin escala</option>
                                                 @foreach($type_prices as $tp)

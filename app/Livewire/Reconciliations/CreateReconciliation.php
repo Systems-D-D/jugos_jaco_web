@@ -1203,11 +1203,11 @@ class CreateReconciliation extends Component
     public function recalculateProductShortage(): void
     {
         if (!$this->type_price_id || empty($this->remaining_products)) {
-            foreach ($this->remaining_products as &$product) {
+            $this->remaining_products = array_map(function ($product) {
                 $product['shortage_cash'] = 0.0;
                 $product['shortage_cash_unit_price'] = 0.0;
-            }
-            unset($product);
+                return $product;
+            }, $this->remaining_products);
             $this->product_shortage_total = 0.0;
             return;
         }
@@ -1226,7 +1226,7 @@ class CreateReconciliation extends Component
 
         $total = 0.0;
 
-        foreach ($this->remaining_products as &$product) {
+        $this->remaining_products = array_map(function ($product) use ($baseUnits, $prices, &$total) {
             $productId = $product['product_id'];
             $remaining = (float) $product['remaining'];
 
@@ -1236,7 +1236,7 @@ class CreateReconciliation extends Component
             if (!$baseUnit || !$productPrices || $remaining <= 0) {
                 $product['shortage_cash_unit_price'] = 0.0;
                 $product['shortage_cash'] = 0.0;
-                continue;
+                return $product;
             }
 
             $priceRecord = $productPrices->firstWhere('product_unit_id', $baseUnit->id);
@@ -1245,8 +1245,9 @@ class CreateReconciliation extends Component
             $product['shortage_cash_unit_price'] = $unitPrice;
             $product['shortage_cash'] = round($remaining * $unitPrice, 2);
             $total += $product['shortage_cash'];
-        }
-        unset($product);
+
+            return $product;
+        }, $this->remaining_products);
 
         $this->product_shortage_total = round($total, 2);
     }

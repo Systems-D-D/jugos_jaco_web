@@ -10,8 +10,8 @@ use App\Models\ProductUnit;
 use App\Models\TypePrice;
 use App\Models\User;
 use App\Models\DailySalesReconciliation;
+use Livewire\Livewire;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use function Pest\Livewire\livewire;
 use App\Livewire\Reconciliations\CreateReconciliation;
 
 uses(RefreshDatabase::class);
@@ -67,56 +67,39 @@ it('calculates product shortage cash correctly', function () {
     // remaining = 100 - 70 - 0 - 0 - 0 = 30
     // shortage_cash = 30 * 25.00 = 750.00
     
-    $component = livewire(CreateReconciliation::class, ['employee_id' => $this->employee->id]);
-    
-    $component->assertSet('remaining_products', function ($products) {
-        return count($products) === 1 && $products[0]['remaining'] == 30;
-    });
-    
-    $component->set('type_price_id', $this->typePrice->id);
-    
-    $component->assertSet('product_shortage_total', 750.00);
-    
-    $component->assertSet('remaining_products.0.shortage_cash', 750.00);
-    $component->assertSet('remaining_products.0.shortage_cash_unit_price', 25.00);
+    Livewire::test(CreateReconciliation::class, ['employee_id' => $this->employee->id])
+        ->assertSet('remaining_products', function ($products) {
+            return count($products) === 1 && $products[0]['remaining'] == 30;
+        })
+        ->set('type_price_id', $this->typePrice->id)
+        ->assertSet('product_shortage_total', 750.00)
+        ->assertSet('remaining_products.0.shortage_cash', 750.00)
+        ->assertSet('remaining_products.0.shortage_cash_unit_price', 25.00);
 });
 
 // TypePrice change recalculates
 it('recalculates when type_price changes', function () {
-    $component = livewire(CreateReconciliation::class, ['employee_id' => $this->employee->id]);
-    
-    $component->set('type_price_id', $this->typePrice->id);
-    $component->assertSet('product_shortage_total', 750.00);
-    
-    $component->set('type_price_id', $this->typePrice2->id);
-    $component->assertSet('product_shortage_total', 600.00);
+    Livewire::test(CreateReconciliation::class, ['employee_id' => $this->employee->id])
+        ->set('type_price_id', $this->typePrice->id)
+        ->assertSet('product_shortage_total', 750.00)
+        ->set('type_price_id', $this->typePrice2->id)
+        ->assertSet('product_shortage_total', 600.00);
 });
 
 // Total included in expected cash
 it('adds shortage total to expected cash', function () {
-    $component = livewire(CreateReconciliation::class, ['employee_id' => $this->employee->id]);
-    
-    $component->set('type_price_id', $this->typePrice->id);
-    
-    $shortageTotal = $component->get('product_shortage_total');
-    $cashExpected = $component->get('total_cash_expected');
-    
-    // cash_expected should be at least product_shortage_total (since there are no sales)
-    expect($cashExpected)->toEqual($shortageTotal);
+    Livewire::test(CreateReconciliation::class, ['employee_id' => $this->employee->id])
+        ->set('type_price_id', $this->typePrice->id)
+        ->assertSet('total_cash_expected', 750.00);
 });
 
 // Persistence
 it('persists product_shortage_total and type_price_id on save', function () {
-    $component = livewire(CreateReconciliation::class, ['employee_id' => $this->employee->id]);
-    
-    $component->set('type_price_id', $this->typePrice->id);
-    $component->set('cash_received', 1000.00);
-    
-    // Crear el cuadre primero
-    $component->call('initializeReconciliation');
-    
-    // Luego guardarlo
-    $component->call('saveReconciliation');
+    Livewire::test(CreateReconciliation::class, ['employee_id' => $this->employee->id])
+        ->set('type_price_id', $this->typePrice->id)
+        ->set('cash_received', 1000.00)
+        ->call('initializeReconciliation')
+        ->call('saveReconciliation');
     
     $reconciliation = DailySalesReconciliation::latest()->first();
     
@@ -126,26 +109,22 @@ it('persists product_shortage_total and type_price_id on save', function () {
 
 // Edge case: no type price selected
 it('sets shortage to zero when no type_price selected', function () {
-    $component = livewire(CreateReconciliation::class, ['employee_id' => $this->employee->id]);
-    
-    expect($component->get('product_shortage_total'))->toEqual(0.0);
-    
-    $component->set('type_price_id', null);
-    $component->assertSet('product_shortage_total', 0.0);
+    Livewire::test(CreateReconciliation::class, ['employee_id' => $this->employee->id])
+        ->assertSet('product_shortage_total', 0.0)
+        ->set('type_price_id', null)
+        ->assertSet('product_shortage_total', 0.0);
 });
 
 // Edge case: no remaining products
 it('sets shortage to zero when no products remaining', function () {
-    // Update detail so remaining = 0
     $this->detail->update([
         'sale_quantity' => 100,
         'returned_quantity' => 0,
     ]);
     
-    $component = livewire(CreateReconciliation::class, ['employee_id' => $this->employee->id]);
-    $component->set('type_price_id', $this->typePrice->id);
-    
-    $component->assertSet('product_shortage_total', 0.0);
+    Livewire::test(CreateReconciliation::class, ['employee_id' => $this->employee->id])
+        ->set('type_price_id', $this->typePrice->id)
+        ->assertSet('product_shortage_total', 0.0);
 });
 
 // Shows shortage info in view page
