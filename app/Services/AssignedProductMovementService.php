@@ -14,9 +14,9 @@ class AssignedProductMovementService
     /**
      * Create a new movement (Change or Royalty) and update the assigned product detail accumulator.
      */
-    public function createMovement(int $detailId, string $type, float $quantity, ?string $note = null): AssignedProductMovement
+    public function createMovement(int $detailId, string $type, float $quantity, ?string $note = null, ?int $saleId = null): AssignedProductMovement
     {
-        return DB::transaction(function () use ($detailId, $type, $quantity, $note) {
+        return DB::transaction(function () use ($detailId, $type, $quantity, $note, $saleId) {
             // 1. Find DetailAssignedProduct
             $detail = DetailAssignedProduct::find($detailId);
 
@@ -35,6 +35,7 @@ class AssignedProductMovementService
                 'type' => AssignedProductMovementTypeEnum::from($type),
                 'quantity' => $quantity,
                 'note' => $note,
+                'sale_id' => $saleId,
                 'created_by' => auth()->id(),
             ]);
 

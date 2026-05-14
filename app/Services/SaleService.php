@@ -7,6 +7,7 @@ use App\Enums\TypeInventoryManagementEnum;
 use App\Enums\PaymentTypeEnum;
 use App\Enums\PaymentTermEnum;
 use App\Models\AssignedProduct;
+use App\Models\DetailAssignedProduct;
 use App\Models\FinishedProductInventory;
 use App\Models\Sale;
 use App\Models\SaleDetail;
@@ -21,6 +22,7 @@ class SaleService
     protected $managementInventoryService;
     protected $accountReceivableService;
     protected $clientVisitService;
+    protected $assignedProductMovementService;
 
     /**
      * Constructor del servicio.
@@ -28,15 +30,18 @@ class SaleService
      * @param ManagementInventoryService $managementInventoryService
      * @param AccountReceivableService $accountReceivableService
      * @param ClientVisitService $clientVisitService
+     * @param AssignedProductMovementService $assignedProductMovementService
      */
     public function __construct(
         ManagementInventoryService $managementInventoryService,
         AccountReceivableService $accountReceivableService,
-        ClientVisitService $clientVisitService
+        ClientVisitService $clientVisitService,
+        AssignedProductMovementService $assignedProductMovementService
     ) {
         $this->managementInventoryService = $managementInventoryService;
         $this->accountReceivableService = $accountReceivableService;
         $this->clientVisitService = $clientVisitService;
+        $this->assignedProductMovementService = $assignedProductMovementService;
     }
 
     /**
@@ -138,6 +143,12 @@ class SaleService
     protected function createSaleDetails(Sale $sale, array $productsData): void
     {
         foreach ($productsData as $productData) {
+            // --- CASE: Royalty or Change → AssignedProductMovement ---
+            if (!empty($productData['movement_type'])) {
+                $this->createMovementFromSaleProduct($sale, $productData);
+                continue;
+            }
+
             if (isset($productData['origin']) && $productData['origin'] === 'api') {
                 $productosAsignados = AssignedProduct::where('employee_id', Auth::user()->employee->id)
                     ->todayAssignments()
@@ -225,6 +236,11 @@ class SaleService
         $totalTaxes = 0;
 
         foreach ($products as $product) {
+            // Skip products with movement_type (royalty or change)
+            if (!empty($product['movement_type'])) {
+                continue;
+            }
+
             // Calcular subtotal de línea
             $lineSubtotal = $product['line_subtotal'] ??
                 ($product['quantity'] * $product['unit_price_without_tax']);
@@ -243,5 +259,42 @@ class SaleService
             'total_taxes' => $totalTaxes,
             'final_total' => $subtotal + $totalTaxes,
         ];
+    }
+
+    /**
+     * Crea un AssignedProductMovement vinculado a la venta para productos
+     * que son regalías (royalty) o cambios (change).
+     */
+    private function createMovementFromSaleProduct(Sale $sale, array $productData): void
+    {
+        $assignedProduct = AssignedProduct::where('employee_id', $sale->employee_id)
+            ->whereDate('date', $sale->sale_date)
+            ->first();
+
+        if (!$assignedProduct) {
+            throw new Exception(
+                "No hay asignación de productos para el empleado en la fecha de la venta."
+            );
+        }
+
+        $detail = DetailAssignedProduct::where('assigned_products_id', $assignedProduct->id)
+            ->where('product_id', $productData['product_id'])
+            ->first();
+
+        if (!$detail) {
+            throw new Exception(
+                "El producto '{$productData['name']}' no está asignado al empleado para hoy."
+            );
+        }
+
+        $note = $productData['movement_note'] ?? "Venta #INV-{$sale->id}";
+
+        $this->assignedProductMovementService->createMovement(
+            detailId: $detail->id,
+            type: $productData['movement_type'],
+            quantity: (float) $productData['quantity'],
+            note: $note,
+            saleId: $sale->id,
+        );
     }
 }

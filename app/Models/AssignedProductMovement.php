@@ -13,17 +13,24 @@ class AssignedProductMovement extends Model
         'type',
         'quantity',
         'note',
+        'sale_id',
         'created_by',
     ];
 
     protected $casts = [
         'type' => AssignedProductMovementTypeEnum::class,
         'quantity' => 'decimal:2',
+        'sale_id' => 'integer',
     ];
 
     public function detailAssignedProduct(): BelongsTo
     {
         return $this->belongsTo(DetailAssignedProduct::class);
+    }
+
+    public function sale(): BelongsTo
+    {
+        return $this->belongsTo(Sale::class);
     }
 
     public function creator(): BelongsTo

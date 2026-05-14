@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Enums\AssignedProductMovementTypeEnum;
 use App\Enums\PaymentTypeEnum;
 use App\Enums\PaymentTermEnum;
 use App\Enums\SaleStatusEnum;
@@ -39,6 +40,7 @@ class SaleRequest extends FormRequest
             'products.*.product_id' => 'required|exists:products,id',
             'products.*.quantity' => 'required|numeric|gt:0',
             'products.*.product_price_id' => 'required|exists:products_prices,id',
+            'products.*.movement_type' => ['nullable', 'string', new Enum(AssignedProductMovementTypeEnum::class)],
         ];
     }
 }
