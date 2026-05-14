@@ -26,19 +26,19 @@ class AssignedProductController extends Controller
      * Obtener los productos asignados al empleado asociado al usuario autenticado para la fecha actual.
      *
      * @param Request $request
-     * @return \Illuminate\Http\Resources\Json\AnonymousResourceCollection
+     * @return \Illuminate\Http\JsonResponse
      */
     public function getProductAssigned(Request $request)
     {
         try {
             $assignedProducts = $this->productService->getAssignedProduct(Auth::user()->employee_id);
-            
+
             if (!$assignedProducts) {
                 throw new \Exception('No hay productos asignados para el empleado en la fecha actual.');
             }
-            
+
             $details = $assignedProducts->details;
-         
+
             return $this->successResponse(
                 AssignedProductResource::collection($details),
                 'Productos asignados obtenidos correctamente.'

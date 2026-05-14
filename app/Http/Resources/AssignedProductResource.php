@@ -24,7 +24,9 @@ class AssignedProductResource extends JsonResource
             'productCode' => $this->product->code,
             'quantity' => $this->quantity,
             'sale_quantity' => $this->sale_quantity,
-            'stock' => $this->stock
+            'stock' => $this->stock,
+            'royalties_quantity' => $this->royalties_quantity,
+            'changes_quantity' => $this->changes_quantity,
         ];
     }
 }
