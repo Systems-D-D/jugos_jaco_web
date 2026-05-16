@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\ReconciliationStatusEnum;
+use App\Models\TypePrice;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -35,6 +36,8 @@ class DailySalesReconciliation extends Model
         'deposit_difference',
         'notes',
         'status',
+        'product_shortage_total',
+        'type_price_id',
     ];
 
     protected $casts = [
@@ -54,6 +57,7 @@ class DailySalesReconciliation extends Model
         'cash_difference' => 'decimal:2',
         'deposit_difference' => 'decimal:2',
         'status' => ReconciliationStatusEnum::class,
+        'product_shortage_total' => 'decimal:2',
     ];
 
     /**
@@ -122,6 +126,11 @@ class DailySalesReconciliation extends Model
     public function productReturns(): HasMany
     {
         return $this->hasMany(ProductReturn::class, 'reconciliation_id');
+    }
+
+    public function typePrice(): BelongsTo
+    {
+        return $this->belongsTo(TypePrice::class, 'type_price_id');
     }
 
     /**

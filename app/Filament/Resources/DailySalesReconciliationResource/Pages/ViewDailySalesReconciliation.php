@@ -207,6 +207,25 @@ class ViewDailySalesReconciliation extends ViewRecord
                                     ->extraAttributes(['class' => 'text-center p-4 bg-blue-50 rounded-lg border border-blue-200']),
                             ]),
                         
+                        TextEntry::make('product_shortage_total')
+                            ->label('💎 Efectivo Prod. Faltante')
+                            ->money('HNL')
+                            ->weight(FontWeight::Bold)
+                            ->size('lg')
+                            ->color('warning')
+                            ->placeholder('L 0.00')
+                            ->hidden(fn ($record) => !$record->product_shortage_total)
+                            ->extraAttributes(['class' => 'text-center p-4 bg-amber-50 rounded-lg border border-amber-200']),
+                        
+                        TextEntry::make('typePrice.name')
+                            ->label('🏷️ Escala de Precios')
+                            ->weight(FontWeight::Medium)
+                            ->size('lg')
+                            ->placeholder('No seleccionada')
+                            ->color('gray')
+                            ->hidden(fn ($record) => !$record->type_price_id)
+                            ->extraAttributes(['class' => 'text-center p-4 bg-gray-50 rounded-lg border border-gray-200']),
+                        
                         // Alertas de diferencias
                         Grid::make(2)
                             ->schema([
@@ -393,51 +412,44 @@ class ViewDailySalesReconciliation extends ViewRecord
                 Section::make('🔄 Devoluciones de Productos')
                     ->description('Detalle de productos dañados y retornados durante el día')
                     ->schema([
-                        RepeatableEntry::make('product_returns')
+                        RepeatableEntry::make('productReturns')
                             ->hiddenLabel()
                             ->schema([
                                 Grid::make(1)
                                     ->schema([
-                                        Grid::make(5)
+                                        Grid::make(4)
                                             ->schema([
-                                                TextEntry::make('product.name')
+                                                TextEntry::make('product_id')
                                                     ->label('📦 Producto')
                                                     ->weight(FontWeight::Bold)
-                                                    ->size('lg'),
-                                                    
-                                                TextEntry::make('employee.first_name')
-                                                    ->label('👤 Empleado')
-                                                    ->weight(FontWeight::Medium)
-                                                    ->formatStateUsing(function ($record) {
-                                                        return $record['employee']['first_name'] . ' ' . ($record['employee']['last_name'] ?? '');
-                                                    }),
-                                                    
+                                                    ->size('lg')
+                                                    ->state(fn ($record) => $record->product->name ?? 'Producto no encontrado'),
+                                                
                                                 TextEntry::make('quantity')
                                                     ->label('📊 Cantidad')
                                                     ->weight(FontWeight::Bold)
                                                     ->suffix(' unidades'),
-                                                    
+                                                
                                                 TextEntry::make('type')
                                                     ->label('🏷️ Tipo')
                                                     ->badge()
-                                                    ->color(fn ($state) => match($state) {
+                                                    ->color(fn ($state) => match($state?->value ?? $state) {
                                                         'damaged' => 'danger',
                                                         'returned' => 'warning',
                                                         default => 'gray'
                                                     })
-                                                    ->formatStateUsing(fn ($state) => match($state) {
+                                                    ->formatStateUsing(fn ($state) => match($state?->value ?? $state) {
                                                         'damaged' => 'Dañado',
                                                         'returned' => 'Retornado',
-                                                        default => $state
+                                                        default => is_string($state) ? $state : ($state?->value ?? '')
                                                     }),
-                                                    
+                                                
                                                 TextEntry::make('reason')
                                                     ->label('📝 Motivo')
                                                     ->weight(FontWeight::Medium)
                                                     ->limit(30),
                                             ]),
                                             
-                                        // Descripción completa si existe
                                         TextEntry::make('description')
                                             ->label('📋 Descripción Detallada')
                                             ->placeholder('Sin descripción adicional')
@@ -448,42 +460,10 @@ class ViewDailySalesReconciliation extends ViewRecord
                                     ->extraAttributes(['class' => 'p-4 bg-gray-50 rounded-lg border border-gray-200 mb-3']),
                             ])
                             ->columns(1)
-                            ->contained(false)
-                            ->state(function ($record) {
-                                $returns = $record->productReturns()
-                                    ->with(['product', 'employee'])
-                                    ->orderBy('created_at', 'desc')
-                                    ->get()
-                                    ->map(function ($return) {
-                                        return [
-                                            'id' => $return->id,
-                                            'product' => [
-                                                'name' => $return->product->name ?? 'Producto no encontrado'
-                                            ],
-                                            'employee' => [
-                                                'first_name' => $return->employee->first_name ?? 'Empleado',
-                                                'last_name' => $return->employee->last_name ?? ''
-                                            ],
-                                            'quantity' => $return->quantity,
-                                            'type' => $return->type,
-                                            'reason' => $return->reason,
-                                            'description' => $return->description,
-                                        ];
-                                    })
-                                    ->toArray();
-                                
-                                return empty($returns) ? [[
-                                    'product' => ['name' => 'No hay devoluciones registradas'],
-                                    'employee' => ['first_name' => '', 'last_name' => ''],
-                                    'quantity' => 0,
-                                    'type' => '',
-                                    'reason' => '',
-                                    'description' => '',
-                                ]] : $returns;
-                            }),
-                            
+                            ->contained(false),
+                        
                         // Resumen de Devoluciones
-                        Grid::make(2)
+                        Grid::make(3)
                             ->schema([
                                 TextEntry::make('total_damaged_products')
                                     ->label('🚫 Productos Dañados')
@@ -504,6 +484,16 @@ class ViewDailySalesReconciliation extends ViewRecord
                                     ->state(function ($record) {
                                         return $record->productReturns()->where('type', 'returned')->sum('quantity');
                                     }),
+                                    
+                                TextEntry::make('product_shortage_total')
+                                    ->label('💎 Efectivo Prod. Faltante')
+                                    ->money('HNL')
+                                    ->weight(FontWeight::Bold)
+                                    ->size('lg')
+                                    ->color('warning')
+                                    ->placeholder('L 0.00')
+                                    ->hidden(fn ($record) => !$record->product_shortage_total)
+                                    ->extraAttributes(['class' => 'p-3 bg-amber-100 rounded-lg']),
                             ]),
                     ])
                     ->compact()

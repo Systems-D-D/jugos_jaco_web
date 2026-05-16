@@ -15,6 +15,9 @@ use App\Models\Bill;
 use App\Models\ProductReturn;
 use App\Models\AssignedProductMovement;
 use App\Services\ProductReturnService;
+use App\Models\TypePrice;
+use App\Models\ProductUnit;
+use App\Models\ProductPrice;
 use App\Enums\ReconciliationStatusEnum;
 use App\Enums\BankEnum;
 use App\Enums\ProductReturnTypeEnum;
@@ -76,6 +79,10 @@ class CreateReconciliation extends Component
 
     // Remaining products properties
     public array $remaining_products = [];
+
+    public ?string $type_price_id = null;
+    public array $type_prices = [];
+    public float $product_shortage_total = 0.0;
     
     // Product search properties (simplified)
     public string $product_search = '';
@@ -120,6 +127,7 @@ class CreateReconciliation extends Component
         $this->banks = BankEnum::options();
         $this->products = Product::where('is_active', true)->get();
         $this->return_types = ProductReturnTypeEnum::getOptions();
+        $this->loadTypePrices();
         
         // Establecer "Producto dañado" como valor predeterminado
         $this->return_type = ProductReturnTypeEnum::DAMAGED->value;
@@ -288,7 +296,7 @@ class CreateReconciliation extends Component
         $this->calculateBillTotals();
         
         // El efectivo esperado se reduce por los gastos realizados, pero nunca puede ser negativo
-        $this->total_cash_expected = max(0, $cash_only_sales + $this->total_cash_collections) - $this->total_bills;
+        $this->total_cash_expected = max(0, $cash_only_sales + $this->total_cash_collections) - $this->total_bills + $this->product_shortage_total;
         
         // Calcular depósitos esperados (ventas pagadas con depósitos + cobros en depósitos)
         $this->total_deposit_expected = $this->total_deposit_sales + $this->total_deposit_collections;
@@ -358,7 +366,9 @@ class CreateReconciliation extends Component
                 'total_deposit_expected' => $this->total_deposit_expected,
                 'cash_difference' => $this->cash_difference,
                 'status' => ReconciliationStatusEnum::PENDING,
-                'notes' => null
+                'notes' => null,
+                'product_shortage_total' => $this->product_shortage_total,
+                'type_price_id' => $this->type_price_id,
             ]);
         } catch (\Illuminate\Database\QueryException $e) {
             // Handle duplicate entry error
@@ -405,6 +415,8 @@ class CreateReconciliation extends Component
         $this->resetReturnForm();
         $this->movements = [];
         $this->remaining_products = [];
+        $this->type_price_id = null;
+        $this->product_shortage_total = 0.0;
     }
     
     protected function getPaymentMethodLabel($paymentMethod): string
@@ -493,7 +505,9 @@ class CreateReconciliation extends Component
                     'cash_collections' => $this->total_cash_collections,
                     'deposit_collections' => $this->total_deposit_collections,
                     'total_collections' => $this->total_collections,
-                    'total_bills' => $this->total_bills
+                    'total_bills' => $this->total_bills,
+                    'product_shortage_total' => $this->product_shortage_total,
+                    'type_price_id' => $this->type_price_id,
                 ]);
                 
                 // Recargar el cuadre para tener los datos actualizados
@@ -897,6 +911,7 @@ class CreateReconciliation extends Component
 
                 return [
                     'id' => $detail->id,
+                    'product_id' => $detail->product_id,
                     'product_name' => $detail->product->name ?? 'Producto no encontrado',
                     'product_code' => $detail->product->code ?? 'N/A',
                     'quantity_assigned' => $quantityAssigned,
@@ -913,6 +928,10 @@ class CreateReconciliation extends Component
             })
             ->values()
             ->toArray();
+
+        if ($this->type_price_id) {
+            $this->recalculateProductShortage();
+        }
     }
 
     public function addReturn(): void
@@ -1168,6 +1187,69 @@ class CreateReconciliation extends Component
             ]);
             throw new \Exception('Error al procesar la devolución: ' . $e->getMessage());
         }
+    }
+
+    public function loadTypePrices(): void
+    {
+        $this->type_prices = TypePrice::orderBy('name')->get()->toArray();
+    }
+
+    public function updatedTypePriceId(): void
+    {
+        $this->recalculateProductShortage();
+        $this->calculateTotals();
+    }
+
+    public function recalculateProductShortage(): void
+    {
+        if (!$this->type_price_id || empty($this->remaining_products)) {
+            $this->remaining_products = array_map(function ($product) {
+                $product['shortage_cash'] = 0.0;
+                $product['shortage_cash_unit_price'] = 0.0;
+                return $product;
+            }, $this->remaining_products);
+            $this->product_shortage_total = 0.0;
+            return;
+        }
+
+        $productIds = array_column($this->remaining_products, 'product_id');
+
+        $baseUnits = ProductUnit::whereIn('product_id', $productIds)
+            ->where('is_base_unit', true)
+            ->get()
+            ->keyBy('product_id');
+
+        $prices = ProductPrice::where('type_price_id', $this->type_price_id)
+            ->whereIn('product_id', $productIds)
+            ->get()
+            ->groupBy('product_id');
+
+        $total = 0.0;
+
+        $this->remaining_products = array_map(function ($product) use ($baseUnits, $prices, &$total) {
+            $productId = $product['product_id'];
+            $remaining = (float) $product['remaining'];
+
+            $baseUnit = $baseUnits->get($productId);
+            $productPrices = $prices->get($productId);
+
+            if (!$baseUnit || !$productPrices || $remaining <= 0) {
+                $product['shortage_cash_unit_price'] = 0.0;
+                $product['shortage_cash'] = 0.0;
+                return $product;
+            }
+
+            $priceRecord = $productPrices->firstWhere('product_unit_id', $baseUnit->id);
+            $unitPrice = $priceRecord ? (float) $priceRecord->price : 0.0;
+
+            $product['shortage_cash_unit_price'] = $unitPrice;
+            $product['shortage_cash'] = round($remaining * $unitPrice, 2);
+            $total += $product['shortage_cash'];
+
+            return $product;
+        }, $this->remaining_products);
+
+        $this->product_shortage_total = round($total, 2);
     }
 
     public function render()
