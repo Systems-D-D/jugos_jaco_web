@@ -19,6 +19,11 @@ class ViewDailySalesReconciliation extends ViewRecord
 {
     protected static string $resource = DailySalesReconciliationResource::class;
 
+    // INFO: To prevent N+1 queries from inline aggregates (bills()->sum, deposits()->count, etc.),
+    // consider adding eager loading in DailySalesReconciliationResource::getEloquentQuery():
+    // ->with(['bills', 'deposits', 'productReturns', 'typePrice', 'cashier', 'branch', 'employee'])
+    // Or use withCount(['bills', 'deposits', 'productReturns']) and withSum(['bills as total_bills_sum' => 'amount'])
+
     protected function getHeaderActions(): array
     {
         return [
@@ -217,9 +222,9 @@ class ViewDailySalesReconciliation extends ViewRecord
                                                 ->schema([
                                                     TextEntry::make('bank')
                                                         ->label('Banco')
-                                                        ->formatStateUsing(fn ($state) => $state->getLabel())
+                                                        ->formatStateUsing(fn ($state) => is_string($state) ? $state : ($state?->getLabel() ?? ''))
                                                         ->badge()
-                                                        ->color(fn ($state) => $state->getColor()),
+                                                        ->color(fn ($state) => is_string($state) ? 'gray' : ($state?->getColor() ?? 'gray')),
                                                     TextEntry::make('reference_number')
                                                         ->label('Referencia')
                                                         ->weight(FontWeight::Medium)
@@ -247,7 +252,7 @@ class ViewDailySalesReconciliation extends ViewRecord
                                                 ->get()
                                                 ->map(function ($deposit) {
                                                     return [
-                                                        'bank' => $deposit->bank->value,
+                                                        'bank' => $deposit->bank,
                                                         'reference_number' => $deposit->reference_number,
                                                         'amount' => $deposit->amount,
                                                         'created_at' => $deposit->created_at,
@@ -459,7 +464,7 @@ class ViewDailySalesReconciliation extends ViewRecord
                                             ->extraAttributes(['class' => 'text-right']),
                                         TextEntry::make('product_shortage_description')
                                             ->label('')
-                                            ->state('Escala A · Requiere revision')
+                                            ->state(fn ($record) => ($record->typePrice?->name ?? 'Sin escala') . ' · Requiere revision')
                                             ->size('sm')
                                             ->color('gray')
                                             ->hidden(fn ($record) => !$record->product_shortage_total),
