@@ -169,6 +169,7 @@ class SaleController extends Controller
             'payment_method' => $data['payment_method'],
             'payment_term' => $data['payment_term'],
             'branch_id' => Auth::user()->employee->branch_id,
+            'client_request_uuid' => $data['client_request_uuid'] ?? null,
         ];
     }
 

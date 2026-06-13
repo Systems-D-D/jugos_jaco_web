@@ -9,8 +9,11 @@ use App\Models\DetailAssignedProduct;
 use App\Models\Employee;
 use App\Models\Product;
 use App\Models\ProductPrice;
+use App\Models\ProductUnit;
 use App\Models\Sale;
+use App\Models\TaxCategory;
 use App\Models\TypePrice;
+use App\Models\Unit;
 use App\Models\User;
 use App\Services\AccountReceivableService;
 use App\Services\AssignedProductMovementService;
@@ -30,9 +33,23 @@ beforeEach(function () {
     $category = Category::factory()->create(['name' => 'Test ' . uniqid()]);
     $product = Product::factory()->create(['category_id' => $category->id]);
     $typePrice = TypePrice::factory()->create();
+    $unit = Unit::factory()->create();
+    $productUnit = ProductUnit::factory()->create([
+        'product_id' => $product->id,
+        'unit_id' => $unit->id,
+    ]);
+    $taxCategory = TaxCategory::create([
+        'name' => 'Exento',
+        'rate' => 0,
+        'is_active' => true,
+        'is_for_products' => true,
+        'calculation_type' => 'exempt',
+    ]);
     $productPrice = ProductPrice::factory()->create([
         'product_id' => $product->id,
         'type_price_id' => $typePrice->id,
+        'product_unit_id' => $productUnit->id,
+        'tax_category_id' => $taxCategory->id,
     ]);
     $assignedProduct = AssignedProduct::factory()->create([
         'employee_id' => $employee->id,
@@ -231,6 +248,41 @@ it('updates sale_quantity exactly once per call with lockForUpdate protection', 
     expect((int) $this->detail->sale_quantity)->toBe(10);
     // stock debe quedar en 40 (50 - 10)
     expect((int) $this->detail->stock)->toBe(40);
+});
+
+// ✅ End-to-end — UUID nuevo se persiste en BD y el reintento retorna la misma venta
+it('persists client_request_uuid to database and returns same sale on retry via http', function () {
+    $uuid = (string) \Illuminate\Support\Str::uuid();
+
+    $payload = [
+        'client_request_uuid' => $uuid,
+        'client_id' => $this->client->id,
+        'employee_id' => $this->employee->id,
+        'payment_term' => 'cash',
+        'payment_method' => 'cash',
+        'cash_amount' => 100,
+        'payment_reference' => null,
+        'notes' => null,
+        'products' => [[
+            'product_id' => $this->product->id,
+            'product_price_id' => $this->productPrice->id,
+            'quantity' => 1,
+        ]],
+    ];
+
+    $first = $this->actingAs($this->user, 'sanctum')->postJson('/api/sales', $payload);
+    $first->assertStatus(200);
+    $saleId = $first->json('data');
+
+    // UUID debe estar persistido en BD
+    expect(Sale::where('client_request_uuid', $uuid)->exists())->toBeTrue();
+
+    // Reintento con mismo UUID — debe retornar la misma venta sin crear una nueva
+    $second = $this->actingAs($this->user, 'sanctum')->postJson('/api/sales', $payload);
+
+    $second->assertStatus(200);
+    expect($second->json('data'))->toBe($saleId);
+    expect(Sale::count())->toBe(1);
 });
 
 // ❌ DB constraint — UUID duplicado en BD lanza IntegrityConstraintViolation
