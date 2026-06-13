@@ -34,6 +34,7 @@ class SaleRequest extends FormRequest
             'cash_amount' => 'required|numeric|min:0',
             'payment_reference' => 'nullable|string|max:255',
             'notes' => 'nullable|string|max:500',
+            'client_request_uuid' => 'nullable|uuid',
 
             // Detalle de venta
             'products' => 'required|array|min:1',
