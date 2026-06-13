@@ -103,7 +103,8 @@
         <div class="fi-section-header-ctn flex px-2 flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <div>
                 <h2 class="fi-section-header-heading text-base font-semibold leading-6 text-gray-950 dark:text-white">
-                    📊 Cuadre Diario de Ventas
+                    <svg class="w-5 h-5 inline mr-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="16" height="20" rx="2"/><line x1="8" y1="6" x2="16" y2="6"/><line x1="8" y1="10" x2="10" y2="10"/><line x1="14" y1="10" x2="16" y2="10"/><line x1="8" y1="14" x2="10" y2="14"/><line x1="14" y1="14" x2="16" y2="14"/><line x1="8" y1="18" x2="16" y2="18"/></svg>
+                    Cuadre Diario de Ventas
                 </h2>
                 <p class="fi-section-header-description text-sm text-gray-500 dark:text-gray-400">
                     Gestión y seguimiento de ventas por empleado
@@ -114,7 +115,8 @@
                 <div class="fi-fo-field-wrp">
                     <label class="fi-fo-field-wrp-label inline-flex items-center gap-x-2">
                         <span class="text-sm font-medium leading-6 text-gray-950 dark:text-white">
-                            📅 Fecha de Cuadre:
+                            <svg class="w-4 h-4 inline mr-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                            Fecha de Cuadre:
                         </span>
                     </label>
                     <div
@@ -131,7 +133,9 @@
             @if($current_reconciliation && $current_reconciliation->status->value === 'completed')
                 <div
                     class="text-center py-8 bg-yellow-50 rounded-lg border border-yellow-200 dark:bg-yellow-900/30 dark:border-yellow-700">
-                    <div class="text-yellow-600 dark:text-yellow-400 text-4xl mb-4">⚠️</div>
+                    <div class="text-yellow-600 dark:text-yellow-400 mb-4">
+                        <svg class="w-12 h-12 mx-auto" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                    </div>
                     <h3 class="text-lg font-medium text-yellow-700 dark:text-yellow-300 mb-2">Cuadre Diario Completado</h3>
                     <p class="text-yellow-600 dark:text-yellow-400">Ya existe un cuadre completado para este empleado en el
                         día de hoy.</p>
@@ -150,7 +154,8 @@
                                             <div class="flex items-center gap-x-3 justify-between">
                                                 <label class="fi-fo-field-wrp-label inline-flex items-center gap-x-3">
                                                     <span class="text-sm font-medium leading-6 text-gray-950 dark:text-white">
-                                                        👤 Seleccionar Empleado
+                                                        <svg class="w-4 h-4 inline mr-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                                                        Seleccionar Empleado
                                                     </span>
                                                 </label>
                                                 <div>
@@ -170,57 +175,57 @@
                                                     class="fi-input-wrp flex rounded-lg shadow-sm ring-1 transition duration-75 bg-white dark:bg-white/5 ring-gray-950/10 dark:ring-white/20 focus-within:ring-2 focus-within:ring-primary-600 dark:focus-within:ring-primary-500">
                                                     <div class="relative w-full"
                                                         x-data="{ 
-                                                                                                                                                                                                                                                                                        open: false, 
-                                                                                                                                                                                                                                                                                        search: '', 
-                                                                                                                                                                                                                                                                                        selectedEmployee: null,
-                                                                                                                                                                                                                                                                                        isSearching: false,
-                                                                                                                                                                                                                                                                                        noResults: false,
-                                                                                                                                                                                                                                                                                        showMinCharsMessage: false,
-                                                                                                                                                                                                                                                                                        employees: {{ $employees->map(function ($emp) {
+                                                                                                                                                                                                                                                                                                                                        open: false, 
+                                                                                                                                                                                                                                                                                                                                        search: '', 
+                                                                                                                                                                                                                                                                                                                                        selectedEmployee: null,
+                                                                                                                                                                                                                                                                                                                                        isSearching: false,
+                                                                                                                                                                                                                                                                                                                                        noResults: false,
+                                                                                                                                                                                                                                                                                                                                        showMinCharsMessage: false,
+                                                                                                                                                                                                                                                                                                                                        employees: {{ $employees->map(function ($emp) {
                 return ['id' => $emp->id, 'name' => $emp->first_name . ' ' . $emp->last_name, 'position' => $emp->position ?? 'Empleado']; })->toJson() }},
-                                                                                                                                                                                                                                                                                        get filteredEmployees() {
-                                                                                                                                                                                                                                                                                            if (this.search.length < 4) return [];
-                                                                                                                                                                                                                                                                                            const results = this.employees.filter(emp => 
-                                                                                                                                                                                                                                                                                                emp.name.toLowerCase().includes(this.search.toLowerCase())
-                                                                                                                                                                                                                                                                                            );
-                                                                                                                                                                                                                                                                                            this.noResults = results.length === 0;
-                                                                                                                                                                                                                                                                                            return results;
-                                                                                                                                                                                                                                                                                        },
-                                                                                                                                                                                                                                                                                        init() {
-                                                                                                                                                                                                                                                                                            if ($wire.employee_id) {
-                                                                                                                                                                                                                                                                                                const employeeId = parseInt($wire.employee_id);
-                                                                                                                                                                                                                                                                                                const employee = this.employees.find(emp => emp.id === employeeId);
-                                                                                                                                                                                                                                                                                                if (employee) {
-                                                                                                                                                                                                                                                                                                    this.selectedEmployee = employee;
-                                                                                                                                                                                                                                                                                                    this.search = employee.name;
-                                                                                                                                                                                                                                                                                                }
-                                                                                                                                                                                                                                                                                            }
+                                                                                                                                                                                                                                                                                                                                        get filteredEmployees() {
+                                                                                                                                                                                                                                                                                                                                            if (this.search.length < 4) return [];
+                                                                                                                                                                                                                                                                                                                                            const results = this.employees.filter(emp => 
+                                                                                                                                                                                                                                                                                                                                                emp.name.toLowerCase().includes(this.search.toLowerCase())
+                                                                                                                                                                                                                                                                                                                                            );
+                                                                                                                                                                                                                                                                                                                                            this.noResults = results.length === 0;
+                                                                                                                                                                                                                                                                                                                                            return results;
+                                                                                                                                                                                                                                                                                                                                        },
+                                                                                                                                                                                                                                                                                                                                        init() {
+                                                                                                                                                                                                                                                                                                                                            if ($wire.employee_id) {
+                                                                                                                                                                                                                                                                                                                                                const employeeId = parseInt($wire.employee_id);
+                                                                                                                                                                                                                                                                                                                                                const employee = this.employees.find(emp => emp.id === employeeId);
+                                                                                                                                                                                                                                                                                                                                                if (employee) {
+                                                                                                                                                                                                                                                                                                                                                    this.selectedEmployee = employee;
+                                                                                                                                                                                                                                                                                                                                                    this.search = employee.name;
+                                                                                                                                                                                                                                                                                                                                                }
+                                                                                                                                                                                                                                                                                                                                            }
 
-                                                                                                                                                                                                                                                                                            this.$watch('search', (value) => {
-                                                                                                                                                                                                                                                                                                if (!this.selectedEmployee) {
-                                                                                                                                                                                                                                                                                                    this.isSearching = value.length > 0;
-                                                                                                                                                                                                                                                                                                    this.showMinCharsMessage = value.length > 0 && value.length < 4;
-                                                                                                                                                                                                                                                                                                    this.open = value.length >= 4;
-                                                                                                                                                                                                                                                                                                }
-                                                                                                                                                                                                                                                                                            });
-                                                                                                                                                                                                                                                                                        },
-                                                                                                                                                                                                                                                                                        selectEmployee(employee) {
-                                                                                                                                                                                                                                                                                            this.selectedEmployee = employee;
-                                                                                                                                                                                                                                                                                            this.search = employee.name;
-                                                                                                                                                                                                                                                                                            this.open = false;
-                                                                                                                                                                                                                                                                                            this.isSearching = false;
-                                                                                                                                                                                                                                                                                            this.showMinCharsMessage = false;
-                                                                                                                                                                                                                                                                                            $wire.set('employee_id', employee.id);
-                                                                                                                                                                                                                                                                                        },
-                                                                                                                                                                                                                                                                                        clearSelection() {
-                                                                                                                                                                                                                                                                                            this.selectedEmployee = null;
-                                                                                                                                                                                                                                                                                            this.search = '';
-                                                                                                                                                                                                                                                                                            this.open = false;
-                                                                                                                                                                                                                                                                                            this.isSearching = false;
-                                                                                                                                                                                                                                                                                            this.showMinCharsMessage = false;
-                                                                                                                                                                                                                                                                                            $wire.set('employee_id', null);
-                                                                                                                                                                                                                                                                                        }
-                                                                                                                                                                                                                                                                                    }">
+                                                                                                                                                                                                                                                                                                                                            this.$watch('search', (value) => {
+                                                                                                                                                                                                                                                                                                                                                if (!this.selectedEmployee) {
+                                                                                                                                                                                                                                                                                                                                                    this.isSearching = value.length > 0;
+                                                                                                                                                                                                                                                                                                                                                    this.showMinCharsMessage = value.length > 0 && value.length < 4;
+                                                                                                                                                                                                                                                                                                                                                    this.open = value.length >= 4;
+                                                                                                                                                                                                                                                                                                                                                }
+                                                                                                                                                                                                                                                                                                                                            });
+                                                                                                                                                                                                                                                                                                                                        },
+                                                                                                                                                                                                                                                                                                                                        selectEmployee(employee) {
+                                                                                                                                                                                                                                                                                                                                            this.selectedEmployee = employee;
+                                                                                                                                                                                                                                                                                                                                            this.search = employee.name;
+                                                                                                                                                                                                                                                                                                                                            this.open = false;
+                                                                                                                                                                                                                                                                                                                                            this.isSearching = false;
+                                                                                                                                                                                                                                                                                                                                            this.showMinCharsMessage = false;
+                                                                                                                                                                                                                                                                                                                                            $wire.set('employee_id', employee.id);
+                                                                                                                                                                                                                                                                                                                                        },
+                                                                                                                                                                                                                                                                                                                                        clearSelection() {
+                                                                                                                                                                                                                                                                                                                                            this.selectedEmployee = null;
+                                                                                                                                                                                                                                                                                                                                            this.search = '';
+                                                                                                                                                                                                                                                                                                                                            this.open = false;
+                                                                                                                                                                                                                                                                                                                                            this.isSearching = false;
+                                                                                                                                                                                                                                                                                                                                            this.showMinCharsMessage = false;
+                                                                                                                                                                                                                                                                                                                                            $wire.set('employee_id', null);
+                                                                                                                                                                                                                                                                                                                                        }
+                                                                                                                                                                                                                                                                                                                                    }">
                                                         <!-- Filament-style select -->
                                                         <div class="fi-select-input-wrapper relative w-full">
                                                             <!-- Icono del lado izquierdo (lupa o usuario) -->
@@ -252,20 +257,20 @@
                                                                 @input="if (!selectedEmployee && search.length >= 4) open = true"
                                                                 @keydown.escape="open = false"
                                                                 @keydown.arrow-down.prevent="
-                                                                                                                                                                                                                                                                                                    if (filteredEmployees.length > 0) {
-                                                                                                                                                                                                                                                                                                        $el.blur();
-                                                                                                                                                                                                                                                                                                        $refs.employeesList.querySelector('button').focus();
-                                                                                                                                                                                                                                                                                                    }
-                                                                                                                                                                                                                                                                                                "
+                                                                                                                                                                                                                                                                                                                                                    if (filteredEmployees.length > 0) {
+                                                                                                                                                                                                                                                                                                                                                        $el.blur();
+                                                                                                                                                                                                                                                                                                                                                        $refs.employeesList.querySelector('button').focus();
+                                                                                                                                                                                                                                                                                                                                                    }
+                                                                                                                                                                                                                                                                                                                                                "
                                                                 @click="if (selectedEmployee) clearSelection();" type="text"
                                                                 placeholder="Escriba al menos 4 caracteres para buscar..."
                                                                 :readonly="selectedEmployee"
                                                                 class="fi-input block w-full border-none bg-transparent py-2 px-6 pl-10 text-sm text-gray-950 transition duration-75 placeholder:text-gray-400 focus:ring-0 dark:text-white dark:placeholder:text-gray-500 rounded-lg"
                                                                 :class="{
-                                                                                                                                                                                                                                                                                                    'cursor-pointer bg-gray-50 dark:bg-gray-700/50 pr-16': selectedEmployee,
-                                                                                                                                                                                                                                                                                                    'hover:bg-gray-50 dark:hover:bg-gray-700/30 pr-10': !selectedEmployee,
-                                                                                                                                                                                                                                                                                                    'fi-search-highlighting': isSearching && !selectedEmployee
-                                                                                                                                                                                                                                                                                                }"
+                                                                                                                                                                                                                                                                                                                                                    'cursor-pointer bg-gray-50 dark:bg-gray-700/50 pr-16': selectedEmployee,
+                                                                                                                                                                                                                                                                                                                                                    'hover:bg-gray-50 dark:hover:bg-gray-700/30 pr-10': !selectedEmployee,
+                                                                                                                                                                                                                                                                                                                                                    'fi-search-highlighting': isSearching && !selectedEmployee
+                                                                                                                                                                                                                                                                                                                                                }"
                                                                 x-ref="searchInput" />
 
                                                             <!-- Icono del lado derecho -->
@@ -275,8 +280,8 @@
                                                                 <template x-if="selectedEmployee">
                                                                     <button @click.stop="clearSelection()" type="button"
                                                                         class="flex items-center justify-center h-5 w-5 text-gray-400 hover:text-red-500
-                                                                                                                                                                                                                                                                                                                dark:text-gray-500 dark:hover:text-red-400 transition-colors duration-200 
-                                                                                                                                                                                                                                                                                                                rounded-full hover:bg-red-50 dark:hover:bg-red-900/20"
+                                                                                                                                                                                                                                                                                                                                                                dark:text-gray-500 dark:hover:text-red-400 transition-colors duration-200 
+                                                                                                                                                                                                                                                                                                                                                                rounded-full hover:bg-red-50 dark:hover:bg-red-900/20"
                                                                         title="Limpiar selección">
                                                                         <svg fill="currentColor" viewBox="0 0 20 20"
                                                                             class="h-4 w-4">
@@ -317,9 +322,9 @@
                                                                             :aria-selected="selectedEmployee && selectedEmployee.id === employee.id"
                                                                             class="fi-select-option flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm transition-colors duration-75 outline-none"
                                                                             :class="{
-                                                                                                                                                                                                                                                                                                                'bg-primary-500/10 text-primary-600 dark:bg-primary-500/20 dark:text-primary-400': selectedEmployee && selectedEmployee.id === employee.id,
-                                                                                                                                                                                                                                                                                                                'hover:bg-gray-50 dark:hover:bg-white/5 focus:bg-gray-50 dark:focus:bg-white/5': !(selectedEmployee && selectedEmployee.id === employee.id)
-                                                                                                                                                                                                                                                                                                            }">
+                                                                                                                                                                                                                                                                                                                                                                'bg-primary-500/10 text-primary-600 dark:bg-primary-500/20 dark:text-primary-400': selectedEmployee && selectedEmployee.id === employee.id,
+                                                                                                                                                                                                                                                                                                                                                                'hover:bg-gray-50 dark:hover:bg-white/5 focus:bg-gray-50 dark:focus:bg-white/5': !(selectedEmployee && selectedEmployee.id === employee.id)
+                                                                                                                                                                                                                                                                                                                                                            }">
                                                                             <div class="flex flex-1 flex-col">
                                                                                 <span class="truncate"
                                                                                     x-text="employee.name"></span>
@@ -386,7 +391,8 @@
                                                 <div>
                                                     <h4
                                                         class="fi-section-header-heading text-base font-semibold leading-6 text-gray-950 dark:text-white">
-                                                        💰 Ventas del Día</h4>
+                                                        <svg class="w-5 h-5 inline mr-1 text-emerald-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8"/><path d="M12 18V6"/></svg>
+                                                            Ventas del Día</h4>
                                                 </div>
                                                 <div
                                                     class="inline-flex items-center justify-center rounded-full bg-primary-50 px-2.5 py-0.5 text-primary-700 dark:bg-primary-500/10 dark:text-primary-400">
@@ -533,12 +539,15 @@
                                                 <div>
                                                     <h4
                                                         class="fi-section-header-heading text-base font-semibold leading-6 text-gray-950 dark:text-white">
-                                                        💰 Ventas del Día</h4>
+                                                        <svg class="w-5 h-5 inline mr-1 text-emerald-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8"/><path d="M12 18V6"/></svg>
+                                                            Ventas del Día</h4>
                                                 </div>
                                             </div>
                                             <div class="fi-section-content p-6 pt-0">
                                                 <div class="text-center py-6">
-                                                    <div class="text-gray-400 text-3xl mb-2">💰</div>
+                                                    <div class="text-gray-400 text-3xl mb-2">
+                                                        <svg class="w-10 h-10 mx-auto" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8"/><path d="M12 18V6"/></svg>
+                                                    </div>
                                                     <p class="text-gray-500 text-sm">No hay ventas registradas para hoy</p>
                                                 </div>
                                             </div>
@@ -556,7 +565,8 @@
                                                 <div>
                                                     <h4
                                                         class="fi-section-header-heading text-base font-semibold leading-6 text-gray-950 dark:text-white">
-                                                        💰 Cobros Recibidos</h4>
+                                                        <svg class="w-5 h-5 inline mr-1 text-indigo-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+                                                            Cobros Recibidos</h4>
                                                 </div>
                                                 <div
                                                     class="inline-flex items-center justify-center rounded-full bg-primary-50 px-2.5 py-0.5 text-primary-700 dark:bg-primary-500/10 dark:text-primary-400">
@@ -651,12 +661,15 @@
                                                 <div>
                                                     <h4
                                                         class="fi-section-header-heading text-base font-semibold leading-6 text-gray-950 dark:text-white">
-                                                        💳 Cobros Recibidos</h4>
+                                                        <svg class="w-5 h-5 inline mr-1 text-indigo-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+                                                            Cobros Recibidos</h4>
                                                 </div>
                                             </div>
                                             <div class="fi-section-content p-6 pt-0">
                                                 <div class="text-center py-6">
-                                                    <div class="text-gray-400 text-3xl mb-2">💳</div>
+                                                    <div class="text-gray-400 text-3xl mb-2">
+                                                        <svg class="w-10 h-10 mx-auto" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+                                                    </div>
                                                     <p class="text-gray-500 text-sm">No hay cobros registrados para hoy</p>
                                                 </div>
                                             </div>
@@ -674,7 +687,8 @@
                                                 <div class="flex items-center gap-x-3">
                                                     <h4
                                                         class="fi-section-header-heading text-base font-semibold leading-6 text-gray-950 dark:text-white">
-                                                        📦 Productos Sobrantes</h4>
+                                                        <svg class="w-5 h-5 inline mr-1 text-amber-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
+                                                            Productos Sobrantes</h4>
                                                     <div
                                                         class="fi-badge inline-flex items-center gap-x-1 rounded-md px-2 py-1 text-xs font-medium ring-1 ring-inset bg-amber-50 text-amber-700 ring-amber-600/10 dark:bg-amber-400/10 dark:text-amber-400 dark:ring-amber-400/30">
                                                         {{ count($remaining_products) }} producto(s)
@@ -699,9 +713,13 @@
                                                         :class="{'opacity-50 cursor-not-allowed': $wire.current_reconciliation && $wire.current_reconciliation.status.value === 'completed'}"
                                                         :disabled="$wire.current_reconciliation && $wire.current_reconciliation.status.value === 'completed'">
                                                         <span wire:loading.remove wire:target="returnAllRemainingProducts"
-                                                            class="text-sm">🔄</span>
+                                                            class="text-sm">
+                                                            <svg class="w-4 h-4 inline mr-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+                                                        </span>
                                                         <span wire:loading wire:target="returnAllRemainingProducts"
-                                                            class="animate-spin text-sm">⏳</span>
+                                                            class="animate-spin text-sm">
+                                                            <svg class="w-4 h-4 inline mr-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
+                                                        </span>
                                                         <span class="text-sm ml-1">Retornar Todos</span>
                                                     </button>
                                                 </div>
@@ -822,12 +840,12 @@
                                                                                             class="text-xs opacity-75 ml-1">(Registrado)</span>
                                                                                     </div>
                                                                                 @else
-<!-- Mostrar input editable cuando no hay cantidad retornada -->
-                                                                                     <input type="number" min="0" step="0.01"
-                                                                                         wire:model="remaining_products.{{ $loop->index }}.returned_quantity"
-                                                                                         @keydown.enter="$wire.updateReturnedQuantity({{ $product['id'] }}, $event.target.value)"
-                                                                                         class="fi-input block w-20 mx-auto border-gray-300 rounded-lg shadow-sm outline-none focus:ring-2 focus:ring-primary-600 focus:border-primary-600 disabled:opacity-70 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200 dark:focus:ring-primary-500 dark:focus:border-primary-500 text-sm text-center"
-                                                                                         placeholder="0" />
+                                                                                    <!-- Mostrar input editable cuando no hay cantidad retornada -->
+                                                                                    <input type="number" min="0" step="0.01"
+                                                                                        wire:model="remaining_products.{{ $loop->index }}.returned_quantity"
+                                                                                        @keydown.enter="$wire.updateReturnedQuantity({{ $product['id'] }}, $event.target.value)"
+                                                                                        class="fi-input block w-20 mx-auto border-gray-300 rounded-lg shadow-sm outline-none focus:ring-2 focus:ring-primary-600 focus:border-primary-600 disabled:opacity-70 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200 dark:focus:ring-primary-500 dark:focus:border-primary-500 text-sm text-center"
+                                                                                        placeholder="0" />
                                                                                 @endif
                                                                             </div>
                                                                         </td>
@@ -868,12 +886,15 @@
                                                 <div class="flex items-center gap-x-3">
                                                     <h4
                                                         class="fi-section-header-heading text-base font-semibold leading-6 text-gray-950 dark:text-white">
-                                                        📦 Productos Sobrantes</h4>
+                                                        <svg class="w-5 h-5 inline mr-1 text-amber-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
+                                                            Productos Sobrantes</h4>
                                                 </div>
                                             </div>
                                             <div class="fi-section-content p-6 pt-0">
                                                 <div class="text-center py-6">
-                                                    <div class="text-gray-400 text-3xl mb-2">✅</div>
+                                                    <div class="text-gray-400 text-3xl mb-2">
+                                                        <svg class="w-10 h-10 mx-auto text-emerald-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
+                                                    </div>
                                                     <p class="text-gray-500 text-sm">No hay productos sobrantes - Todo vendido</p>
                                                 </div>
                                             </div>
@@ -891,12 +912,13 @@
                                                 <div class="flex items-center gap-x-3">
                                                     <h4
                                                         class="fi-section-header-heading text-base font-semibold leading-6 text-gray-950 dark:text-white">
-                                                        🔄 Devoluciones de Productos</h4>
+                                                        <svg class="w-5 h-5 inline mr-1 text-orange-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
+                                                            Devoluciones de Productos</h4>
                                                     <button type="button" @click="showReturnForm = !showReturnForm"
                                                         class="fi-btn fi-btn-size-xs relative inline-grid grid-flow-col items-center justify-center gap-0.5 rounded-md border-0 font-semibold outline-none transition duration-75 focus:ring-1 fi-color-primary bg-primary-50 text-primary-600 hover:bg-primary-100 dark:bg-primary-400/10 dark:text-primary-400 dark:hover:bg-primary-400/20 focus:ring-primary-500/50 dark:focus:ring-primary-400/50 text-xs py-1 px-2"
                                                         :class="{'opacity-50 cursor-not-allowed': $wire.current_reconciliation && $wire.current_reconciliation.status.value === 'completed'}"
                                                         :disabled="$wire.current_reconciliation && $wire.current_reconciliation.status.value === 'completed'">
-                                                        <span class="text-xs" x-text="showReturnForm ? '➖' : '➕'"></span>
+                                                        <span class="text-xs" x-text="showReturnForm ? '−' : '+'"></span>
                                                         <span class="text-xs ml-1"
                                                             x-text="showReturnForm ? 'Ocultar' : 'Agregar'"></span>
                                                     </button>
@@ -1058,7 +1080,9 @@
                                                     <div class="flex justify-end mt-4">
                                                         <button type="button" wire:click="addReturn"
                                                             class="fi-btn fi-btn-size-sm relative inline-grid grid-flow-col items-center justify-center gap-1 rounded-lg border-0 font-semibold outline-none transition duration-75 focus:ring-2 fi-color-primary bg-primary-600 text-white hover:bg-primary-500 dark:bg-primary-500 dark:hover:bg-primary-400 focus:ring-primary-500/50 dark:focus:ring-primary-400/50 text-xs py-2 px-3">
-                                                            <span class="mr-1">➕</span> Registrar Devolución
+                                                            <span class="mr-1">
+                                                                <svg class="w-4 h-4 inline" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                                                            </span> Registrar Devolución
                                                         </button>
                                                     </div>
                                                 </div>
@@ -1120,6 +1144,14 @@
                                                                                     class="group flex w-full items-center gap-x-1 whitespace-nowrap justify-start">
                                                                                     <span
                                                                                         class="fi-ta-header-cell-label text-sm font-semibold text-gray-950 dark:text-white">Hora</span>
+                                                                                </span>
+                                                                            </th>
+                                                                            <th
+                                                                                class="fi-ta-header-cell px-3 py-3.5 sm:first-of-type:ps-6 sm:last-of-type:pe-6 text-center">
+                                                                                <span
+                                                                                    class="group flex w-full items-center gap-x-1 whitespace-nowrap justify-center">
+                                                                                    <span
+                                                                                        class="fi-ta-header-cell-label text-sm font-semibold text-gray-950 dark:text-white">Acciones</span>
                                                                                 </span>
                                                                             </th>
 
@@ -1185,8 +1217,8 @@
                                                                                     </div>
                                                                                 </td>
                                                                                 <td
-                                                                                    class="fi-ta-cell p-0 first-of-type:ps-1 last-of-type:pe-1 sm:first-of-type:ps-3 sm:last-of-type:pe-3">
-                                                                                    <div class="fi-ta-col-wrp px-3 py-4">
+                                                                                    class="fi-ta-cell p-0 first-of-type:ps-1 last-of-type:pe-1 sm:first-of-type:ps-3 sm:last-of-type:pe-3 text-center">
+                                                                                    <div class="fi-ta-col-wrp px-3 py-4 flex justify-center">
                                                                                         <button type="button"
                                                                                             wire:click="deleteReturn({{ $return['id'] }})"
                                                                                             class="fi-icon-btn relative flex items-center justify-center rounded-lg outline-none transition duration-75 focus:ring-2 -m-2 h-8 w-8 text-gray-400 hover:text-gray-500 focus:ring-primary-600 dark:text-gray-500 dark:hover:text-gray-400 dark:focus:ring-primary-500"
@@ -1210,7 +1242,9 @@
                                                     </div>
                                                 @else
                                                     <div class="text-center py-6">
-                                                        <div class="text-gray-400 text-3xl mb-2">🔄</div>
+                                                        <div class="text-gray-400 text-3xl mb-2">
+                                                            <svg class="w-10 h-10 mx-auto" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
+                                                        </div>
                                                         <p class="text-gray-500 text-sm">No hay devoluciones registradas para hoy</p>
                                                     </div>
                                                 @endif
@@ -1226,7 +1260,8 @@
                                                 <div class="flex items-center gap-x-3">
                                                     <h4
                                                         class="fi-section-header-heading text-base font-semibold leading-6 text-gray-950 dark:text-white">
-                                                        🔄 Movimientos (Cambios y Regalías)</h4>
+                                                        <svg class="w-5 h-5 inline mr-1 text-blue-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 3h5v5"/><path d="M8 3H3v5"/><path d="M12 22v-8.5"/><path d="M21 3l-9 9"/><path d="M3 3l9 9"/></svg>
+                                                            Movimientos (Cambios y Regalías)</h4>
                                                 </div>
                                                 <div
                                                     class="inline-flex items-center justify-center rounded-full bg-blue-50 px-2.5 py-0.5 text-blue-700 dark:bg-blue-500/10 dark:text-blue-400">
@@ -1296,9 +1331,9 @@
                                                                             </span>
                                                                         </th>
                                                                         <th
-                                                                            class="fi-ta-header-cell px-3 py-3.5 sm:first-of-type:ps-6 sm:last-of-type:pe-6 text-start">
+                                                                            class="fi-ta-header-cell px-3 py-3.5 sm:first-of-type:ps-6 sm:last-of-type:pe-6 text-center">
                                                                             <span
-                                                                                class="group flex w-full items-center gap-x-1 whitespace-nowrap justify-start">
+                                                                                class="group flex w-full items-center gap-x-1 whitespace-nowrap justify-center">
                                                                                 <span
                                                                                     class="fi-ta-header-cell-label text-sm font-semibold text-gray-950 dark:text-white">Acciones</span>
                                                                             </span>
@@ -1356,8 +1391,8 @@
                                                                                 </div>
                                                                             </td>
                                                                             <td
-                                                                                class="fi-ta-cell p-0 first-of-type:ps-1 last-of-type:pe-1 sm:first-of-type:ps-3 sm:last-of-type:pe-3">
-                                                                                <div class="fi-ta-col-wrp px-3 py-4">
+                                                                                class="fi-ta-cell p-0 first-of-type:ps-1 last-of-type:pe-1 sm:first-of-type:ps-3 sm:last-of-type:pe-3 text-center">
+                                                                                <div class="fi-ta-col-wrp px-3 py-4 flex justify-center">
                                                                                     @if($movement['sale_id'])
                                                                                         <span
                                                                                             class="fi-badge flex items-center justify-center gap-x-1 rounded-md text-xs font-medium ring-1 ring-inset px-2 py-1 fi-color-primary bg-blue-50 text-blue-600 ring-blue-600/10 dark:bg-blue-400/10 dark:text-blue-400 dark:ring-blue-400/30">
@@ -1366,6 +1401,23 @@
                                                                                     @else
                                                                                         <span class="text-xs text-gray-400">—</span>
                                                                                     @endif
+                                                                                </div>
+                                                                            </td>
+                                                                            <td
+                                                                                class="fi-ta-cell p-0 first-of-type:ps-1 last-of-type:pe-1 sm:first-of-type:ps-3 sm:last-of-type:pe-3 text-center">
+                                                                                <div class="fi-ta-col-wrp px-3 py-4 flex justify-center">
+                                                                                    <button type="button"
+                                                                                        wire:click="deleteMovement({{ $movement['id'] }})"
+                                                                                        class="fi-icon-btn relative flex items-center justify-center rounded-lg outline-none transition duration-75 focus:ring-2 -m-2 h-8 w-8 text-gray-400 hover:text-gray-500 focus:ring-primary-600 dark:text-gray-500 dark:hover:text-gray-400 dark:focus:ring-primary-500"
+                                                                                        title="Eliminar movimiento">
+                                                                                        <svg class="h-5 w-5" fill="none"
+                                                                                            stroke="currentColor" viewBox="0 0 24 24">
+                                                                                            <path stroke-linecap="round"
+                                                                                                stroke-linejoin="round" stroke-width="2"
+                                                                                                d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16">
+                                                                                            </path>
+                                                                                        </svg>
+                                                                                    </button>
                                                                                 </div>
                                                                             </td>
 
@@ -1378,7 +1430,9 @@
                                                 </div>
                                             @else
                                                 <div class="text-center py-6">
-                                                    <div class="text-gray-400 text-3xl mb-2">🔄</div>
+                                                    <div class="text-gray-400 text-3xl mb-2">
+                                                        <svg class="w-10 h-10 mx-auto" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M16 3h5v5"/><path d="M8 3H3v5"/><path d="M12 22v-8.5"/><path d="M21 3l-9 9"/><path d="M3 3l9 9"/></svg>
+                                                    </div>
                                                     <p class="text-gray-500 text-sm">No hay movimientos registrados para hoy</p>
                                                 </div>
                                             @endif
@@ -1389,7 +1443,7 @@
                         </div>
 
                         <!-- Right Column - Financial Summary -->
-                        <div class="custom-col-35 -ml-2">
+                        <div class="custom-col-35 -ml-2 sticky-slidebar">
                             <div class="custom-bg-light p-2 rounded-lg border border-gray-200">
                                 @if($employee_id)
                                     <!-- Financial Summary -->
@@ -1400,7 +1454,9 @@
                                                 <div class="flex items-center justify-between">
                                                     <div class="flex items-center gap-x-1">
                                                         <span
-                                                            class="fi-section-header-icon flex items-center justify-center rounded-md bg-primary-50 p-0.5 text-primary-500 dark:bg-primary-500/10 dark:text-primary-400 text-sm">🧮</span>
+                                                            class="fi-section-header-icon flex items-center justify-center rounded-md bg-primary-50 p-0.5 text-primary-500 dark:bg-primary-500/10 dark:text-primary-400 text-sm">
+                                                            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="16" height="20" rx="2"/><line x1="8" y1="6" x2="16" y2="6"/><line x1="8" y1="10" x2="10" y2="10"/><line x1="14" y1="10" x2="16" y2="10"/><line x1="8" y1="14" x2="10" y2="14"/><line x1="14" y1="14" x2="16" y2="14"/><line x1="8" y1="18" x2="16" y2="18"/></svg>
+                                                        </span>
                                                         <h3
                                                             class="fi-section-header-heading text-md font-semibold leading-5 text-gray-950 dark:text-white">
                                                             Resumen Financiero
@@ -1414,8 +1470,10 @@
                                                 <li class="fi-ta-item p-2 hover:bg-gray-50 dark:hover:bg-gray-700">
                                                     <div class="flex justify-between items-center">
                                                         <div class="flex items-center gap-x-1">
-                                                            <span
-                                                                class="fi-section-header-icon flex items-center justify-center rounded-md bg-primary-50 p-0.5 text-primary-500 dark:bg-primary-500/10 dark:text-primary-400 text-sm">💰</span>
+                                                        <span
+                                                            class="fi-section-header-icon flex items-center justify-center rounded-md bg-emerald-50 p-0.5 text-emerald-500 dark:bg-emerald-500/10 dark:text-emerald-400 text-sm">
+                                                            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8"/><path d="M12 18V6"/></svg>
+                                                        </span>
                                                             <span class="text-sm font-medium text-gray-950 dark:text-white">Ventas
                                                                 al Contado</span>
                                                         </div>
@@ -1437,8 +1495,10 @@
                                                 <li class="fi-ta-item p-2 hover:bg-gray-50 dark:hover:bg-gray-700">
                                                     <div class="flex justify-between items-center">
                                                         <div class="flex items-center gap-x-1">
-                                                            <span
-                                                                class="fi-section-header-icon flex items-center justify-center rounded-md bg-primary-50 p-0.5 text-primary-500 dark:bg-primary-500/10 dark:text-primary-400 text-sm">🏦</span>
+                                                        <span
+                                                            class="fi-section-header-icon flex items-center justify-center rounded-md bg-indigo-50 p-0.5 text-indigo-500 dark:bg-indigo-500/10 dark:text-indigo-400 text-sm">
+                                                            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M12 4v16"/><path d="M2 12h20"/></svg>
+                                                        </span>
                                                             <span class="text-sm font-medium text-gray-950 dark:text-white">Ventas a
                                                                 Crédito</span>
                                                         </div>
@@ -1449,8 +1509,10 @@
                                                 <li class="fi-ta-item p-2 hover:bg-gray-50 dark:hover:bg-gray-700">
                                                     <div class="flex justify-between items-center">
                                                         <div class="flex items-center gap-x-1">
-                                                            <span
-                                                                class="fi-section-header-icon flex items-center justify-center rounded-md bg-primary-50 p-0.5 text-primary-500 dark:bg-primary-500/10 dark:text-primary-400 text-sm">💰</span>
+                                                        <span
+                                                            class="fi-section-header-icon flex items-center justify-center rounded-md bg-emerald-50 p-0.5 text-emerald-500 dark:bg-emerald-500/10 dark:text-emerald-400 text-sm">
+                                                            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8"/><path d="M12 18V6"/></svg>
+                                                        </span>
                                                             <span class="text-sm font-medium text-gray-950 dark:text-white">Total
                                                                 Cobros</span>
                                                         </div>
@@ -1489,8 +1551,10 @@
                                                 <li class="fi-ta-item p-2 hover:bg-gray-50 dark:hover:bg-gray-700">
                                                     <div class="flex justify-between items-center">
                                                         <div class="flex items-center gap-x-1">
-                                                            <span
-                                                                class="fi-section-header-icon flex items-center justify-center rounded-md bg-primary-50 p-0.5 text-primary-500 dark:bg-primary-500/10 dark:text-primary-400 text-sm">💰</span>
+                                                        <span
+                                                            class="fi-section-header-icon flex items-center justify-center rounded-md bg-emerald-50 p-0.5 text-emerald-500 dark:bg-emerald-500/10 dark:text-emerald-400 text-sm">
+                                                            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8"/><path d="M12 18V6"/></svg>
+                                                        </span>
                                                             <span class="text-sm font-medium text-gray-950 dark:text-white">Efectivo
                                                                 Recibido</span>
                                                         </div>
@@ -1509,8 +1573,10 @@
                                                     class="fi-ta-item p-2 hover:bg-gray-50 dark:hover:bg-gray-700 bg-amber-50/50 dark:bg-amber-400/5">
                                                     <div class="flex justify-between items-center">
                                                         <div class="flex items-center gap-x-1">
-                                                            <span
-                                                                class="fi-section-header-icon flex items-center justify-center rounded-md bg-amber-50 p-0.5 text-amber-500 dark:bg-amber-500/10 dark:text-amber-400 text-sm">💎</span>
+                                                        <span
+                                                            class="fi-section-header-icon flex items-center justify-center rounded-md bg-amber-50 p-0.5 text-amber-500 dark:bg-amber-500/10 dark:text-amber-400 text-sm">
+                                                            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
+                                                        </span>
                                                             <span class="text-sm font-medium text-gray-950 dark:text-white">Total
                                                                 Efectivo Prod. Faltante</span>
                                                         </div>
@@ -1523,8 +1589,10 @@
                                                 <li class="fi-ta-item p-2 hover:bg-gray-50 dark:hover:bg-gray-700">
                                                     <div class="flex justify-between items-center">
                                                         <div class="flex items-center gap-x-1">
-                                                            <span
-                                                                class="fi-section-header-icon flex items-center justify-center rounded-md bg-primary-50 p-0.5 text-primary-500 dark:bg-primary-500/10 dark:text-primary-400 text-sm">💵</span>
+                                                        <span
+                                                            class="fi-section-header-icon flex items-center justify-center rounded-md bg-primary-50 p-0.5 text-primary-500 dark:bg-primary-500/10 dark:text-primary-400 text-sm">
+                                                            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="3"/><path d="M6 12h.01M18 12h.01"/></svg>
+                                                        </span>
                                                             <span class="text-sm font-medium text-gray-950 dark:text-white">Efectivo
                                                                 Esperado <span
                                                                     class="text-xs text-gray-500 dark:text-gray-400">(mín. L
@@ -1539,8 +1607,10 @@
                                                 <li class="fi-ta-item p-2 hover:bg-gray-50 dark:hover:bg-gray-700">
                                                     <div class="flex justify-between items-center">
                                                         <div class="flex items-center gap-x-1">
-                                                            <span
-                                                                class="fi-section-header-icon flex items-center justify-center rounded-md bg-red-50 p-0.5 text-red-500 dark:bg-red-500/10 dark:text-red-400 text-sm">💸</span>
+                                                        <span
+                                                            class="fi-section-header-icon flex items-center justify-center rounded-md bg-red-50 p-0.5 text-red-500 dark:bg-red-500/10 dark:text-red-400 text-sm">
+                                                            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/><line x1="5" y1="12" x2="19" y2="12" stroke-width="3"/></svg>
+                                                        </span>
                                                             <span class="text-sm font-medium text-gray-950 dark:text-white">Total
                                                                 Gastos <span class="text-xs text-gray-500 dark:text-gray-400">(se
                                                                     resta)</span></span>
@@ -1554,8 +1624,10 @@
                                                 <li class="fi-ta-item p-2 hover:bg-gray-50 dark:hover:bg-gray-700">
                                                     <div class="flex justify-between items-center">
                                                         <div class="flex items-center gap-x-1">
-                                                            <span
-                                                                class="fi-section-header-icon flex items-center justify-center rounded-md bg-primary-50 p-0.5 text-primary-500 dark:bg-primary-500/10 dark:text-primary-400 text-sm">🔄</span>
+                                                        <span
+                                                            class="fi-section-header-icon flex items-center justify-center rounded-md bg-primary-50 p-0.5 text-primary-500 dark:bg-primary-500/10 dark:text-primary-400 text-sm">
+                                                            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+                                                        </span>
                                                             <span
                                                                 class="text-sm font-medium text-gray-950 dark:text-white">Diferencia
                                                                 de Efectivo</span>
@@ -1576,7 +1648,9 @@
                                                     <div class="flex justify-between items-center">
                                                         <div class="flex items-center gap-x-1">
                                                             <span
-                                                                class="fi-section-header-icon flex items-center justify-center rounded-md bg-primary-50 p-0.5 text-primary-500 dark:bg-primary-500/10 dark:text-primary-400 text-sm">💸</span>
+                                                                class="fi-section-header-icon flex items-center justify-center rounded-md bg-primary-50 p-0.5 text-primary-500 dark:bg-primary-500/10 dark:text-primary-400 text-sm">
+                                                                <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+                                                            </span>
                                                             <span
                                                                 class="text-sm font-medium text-gray-950 dark:text-white">Depósitos
                                                                 Realizados</span>
@@ -1590,8 +1664,10 @@
                                                 <li class="fi-ta-item p-2 hover:bg-gray-50 dark:hover:bg-gray-700">
                                                     <div class="flex justify-between items-center">
                                                         <div class="flex items-center gap-x-1">
-                                                            <span
-                                                                class="fi-section-header-icon flex items-center justify-center rounded-md bg-primary-50 p-0.5 text-primary-500 dark:bg-primary-500/10 dark:text-primary-400 text-sm">🏦</span>
+                                                        <span
+                                                            class="fi-section-header-icon flex items-center justify-center rounded-md bg-indigo-50 p-0.5 text-indigo-500 dark:bg-indigo-500/10 dark:text-indigo-400 text-sm">
+                                                            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M12 4v16"/><path d="M2 12h20"/></svg>
+                                                        </span>
                                                             <span
                                                                 class="text-sm font-medium text-gray-950 dark:text-white">Depósitos
                                                                 Esperados</span>
@@ -1605,8 +1681,10 @@
                                                 <li class="fi-ta-item p-2 hover:bg-gray-50 dark:hover:bg-gray-700">
                                                     <div class="flex justify-between items-center">
                                                         <div class="flex items-center gap-x-1">
-                                                            <span
-                                                                class="fi-section-header-icon flex items-center justify-center rounded-md bg-primary-50 p-0.5 text-primary-500 dark:bg-primary-500/10 dark:text-primary-400 text-sm">🔄</span>
+                                                        <span
+                                                            class="fi-section-header-icon flex items-center justify-center rounded-md bg-primary-50 p-0.5 text-primary-500 dark:bg-primary-500/10 dark:text-primary-400 text-sm">
+                                                            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+                                                        </span>
                                                             <span
                                                                 class="text-sm font-medium text-gray-950 dark:text-white">Diferencia
                                                                 de Depósitos</span>
@@ -1629,7 +1707,9 @@
                                             <div class="flex items-center justify-between">
                                                 <div class="flex items-center gap-x-1">
                                                     <span
-                                                        class="fi-section-header-icon flex items-center justify-center rounded-md bg-primary-50 p-0.5 text-primary-500 dark:bg-primary-500/10 dark:text-primary-400 text-sm">🏦</span>
+                                                        class="fi-section-header-icon flex items-center justify-center rounded-md bg-primary-50 p-0.5 text-primary-500 dark:bg-primary-500/10 dark:text-primary-400 text-sm">
+                                                        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M12 4v16"/><path d="M2 12h20"/></svg>
+                                                    </span>
                                                     <h3
                                                         class="fi-section-header-heading text-md font-semibold leading-5 text-gray-950 dark:text-white">
                                                         Gestión de Depósitos
@@ -1640,7 +1720,7 @@
                                                     :class="{'opacity-50 cursor-not-allowed': $wire.current_reconciliation && $wire.current_reconciliation.status.value === 'completed'}"
                                                     :disabled="$wire.current_reconciliation && $wire.current_reconciliation.status.value === 'completed'">
                                                     <span class="text-xs"
-                                                        x-text="showDepositForm ? '➖ Ocultar' : '➕ Agregar'"></span>
+                                                        x-text="showDepositForm ? '− Ocultar' : '+ Agregar'"></span>
                                                 </button>
                                             </div>
                                         </div>
@@ -1706,7 +1786,9 @@
                                                             class="fi-btn fi-btn-size-sm relative inline-grid grid-flow-col items-center justify-center gap-1 rounded-lg border-0 font-semibold outline-none transition duration-75 focus:ring-2 fi-color-primary bg-primary-600 text-white hover:bg-primary-500 dark:bg-primary-500 dark:hover:bg-primary-400 focus:ring-primary-500/50 dark:focus:ring-primary-400/50 text-xs py-2 px-2"
                                                             :class="{'opacity-50 cursor-not-allowed': $wire.current_reconciliation && $wire.current_reconciliation.status.value === 'completed'}"
                                                             :disabled="$wire.current_reconciliation && $wire.current_reconciliation.status.value === 'completed'">
-                                                            <span class="mr-1">💾</span> Guardar Depósito
+                                                            <span class="mr-1">
+                                                                <svg class="w-4 h-4 inline" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+                                                            </span> Guardar Depósito
                                                         </button>
                                                     </div>
                                                 </div>
@@ -1739,7 +1821,7 @@
                                                                                 class="fi-ta-header-cell-label text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Monto</span>
                                                                         </th>
                                                                         <th
-                                                                            class="fi-ta-header-cell p-0 first-of-type:ps-1 last-of-type:pe-1 sm:first-of-type:ps-2 sm:last-of-type:pe-2 text-right">
+                                                                            class="fi-ta-header-cell p-0 first-of-type:ps-1 last-of-type:pe-1 sm:first-of-type:ps-2 sm:last-of-type:pe-2 text-center">
                                                                             <span
                                                                                 class="fi-ta-header-cell-label text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Acciones</span>
                                                                         </th>
@@ -1762,14 +1844,18 @@
                                                                                 L {{ number_format($deposit['amount'], 2) }}
                                                                             </td>
                                                                             <td
-                                                                                class="fi-ta-cell p-0 first-of-type:ps-1 last-of-type:pe-1 sm:first-of-type:ps-2 sm:last-of-type:pe-2 py-1.5 whitespace-nowrap text-xs text-right">
-                                                                                <button type="button"
-                                                                                    wire:click="deleteDeposit({{ $deposit['id'] }})"
-                                                                                    class="fi-icon-btn fi-icon-btn-size-xs relative flex items-center justify-center rounded-md outline-none transition duration-75 hover:bg-gray-50 focus:ring-1 dark:hover:bg-gray-700 fi-color-danger text-danger-600 hover:text-danger-500 focus:ring-danger-500/50 dark:text-danger-500 dark:hover:text-danger-400 dark:focus:ring-danger-400/50"
-                                                                                    :class="{'opacity-50 cursor-not-allowed': $wire.current_reconciliation && $wire.current_reconciliation.status.value === 'completed'}"
-                                                                                    :disabled="$wire.current_reconciliation && $wire.current_reconciliation.status.value === 'completed'">
-                                                                                    <span>🗑️</span>
-                                                                                </button>
+                                                                                class="fi-ta-cell p-0 first-of-type:ps-1 last-of-type:pe-1 sm:first-of-type:ps-2 sm:last-of-type:pe-2 py-1.5 whitespace-nowrap text-xs text-center">
+                                                                                <div class="flex justify-center">
+                                                                                    <button type="button"
+                                                                                        wire:click="deleteDeposit({{ $deposit['id'] }})"
+                                                                                        class="fi-icon-btn fi-icon-btn-size-xs relative flex items-center justify-center rounded-md outline-none transition duration-75 hover:bg-gray-50 focus:ring-1 dark:hover:bg-gray-700 fi-color-danger text-danger-600 hover:text-danger-500 focus:ring-danger-500/50 dark:text-danger-500 dark:hover:text-danger-400 dark:focus:ring-danger-400/50"
+                                                                                        :class="{'opacity-50 cursor-not-allowed': $wire.current_reconciliation && $wire.current_reconciliation.status.value === 'completed'}"
+                                                                                        :disabled="$wire.current_reconciliation && $wire.current_reconciliation.status.value === 'completed'">
+                                                                                        <span>
+                                                                                            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                                                                                        </span>
+                                                                                    </button>
+                                                                                </div>
                                                                             </td>
                                                                         </tr>
                                                                     @empty
@@ -1777,7 +1863,9 @@
                                                                             <td colspan="4"
                                                                                 class="px-2 py-3 text-center text-xs text-gray-500 dark:text-gray-400">
                                                                                 <div class="flex flex-col items-center justify-center">
-                                                                                    <span class="text-lg mb-1">💰</span>
+                                                                                    <span class="text-lg mb-1">
+                                                                                        <svg class="w-8 h-8 mx-auto" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M12 4v16"/><path d="M2 12h20"/></svg>
+                                                                                    </span>
                                                                                     <p class="text-xs">No hay depósitos registrados</p>
                                                                                     <p class="text-xs mt-0.5">Utilice el botón + para
                                                                                         agregar un depósito</p>
@@ -1813,7 +1901,9 @@
                                             <div class="flex items-center justify-between">
                                                 <div class="flex items-center gap-x-1">
                                                     <span
-                                                        class="fi-section-header-icon flex items-center justify-center rounded-md bg-red-50 p-0.5 text-red-500 dark:bg-red-500/10 dark:text-red-400 text-sm">💸</span>
+                                                        class="fi-section-header-icon flex items-center justify-center rounded-md bg-red-50 p-0.5 text-red-500 dark:bg-red-500/10 dark:text-red-400 text-sm">
+                                                        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/><line x1="5" y1="12" x2="19" y2="12" stroke-width="3"/></svg>
+                                                    </span>
                                                     <h3
                                                         class="fi-section-header-heading text-md font-semibold leading-5 text-gray-950 dark:text-white">
                                                         Gestión de Gastos
@@ -1823,7 +1913,7 @@
                                                     class="fi-btn fi-btn-size-xs relative inline-grid grid-flow-col items-center justify-center gap-0.5 rounded-md border-0 font-semibold outline-none transition duration-75 focus:ring-1 fi-color-primary bg-primary-50 text-primary-600 hover:bg-primary-100 dark:bg-primary-400/10 dark:text-primary-400 dark:hover:bg-primary-400/20 focus:ring-primary-500/50 dark:focus:ring-primary-400/50 text-xs py-1 px-2"
                                                     :class="{'opacity-50 cursor-not-allowed': $wire.current_reconciliation && $wire.current_reconciliation.status.value === 'completed'}"
                                                     :disabled="$wire.current_reconciliation && $wire.current_reconciliation.status.value === 'completed'">
-                                                    <span class="text-xs" x-text="showBillForm ? '➖ Ocultar' : '➕ Agregar'"></span>
+                                                    <span class="text-xs" x-text="showBillForm ? '− Ocultar' : '+ Agregar'"></span>
                                                 </button>
                                             </div>
                                         </div>
@@ -1885,7 +1975,9 @@
                                                             class="fi-btn fi-btn-size-sm relative inline-grid grid-flow-col items-center justify-center gap-1 rounded-lg border-0 font-semibold outline-none transition duration-75 focus:ring-2 fi-color-primary bg-primary-600 text-white hover:bg-primary-500 dark:bg-primary-500 dark:hover:bg-primary-400 focus:ring-primary-500/50 dark:focus:ring-primary-400/50 text-xs py-2 px-2"
                                                             :class="{'opacity-50 cursor-not-allowed': $wire.current_reconciliation && $wire.current_reconciliation.status.value === 'completed'}"
                                                             :disabled="$wire.current_reconciliation && $wire.current_reconciliation.status.value === 'completed'">
-                                                            <span class="mr-1">💾</span> Guardar Gasto
+                                                            <span class="mr-1">
+                                                                <svg class="w-4 h-4 inline" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+                                                            </span> Guardar Gasto
                                                         </button>
                                                     </div>
                                                 </div>
@@ -1918,7 +2010,7 @@
                                                                                 class="fi-ta-header-cell-label text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Monto</span>
                                                                         </th>
                                                                         <th
-                                                                            class="fi-ta-header-cell p-0 first-of-type:ps-1 last-of-type:pe-1 sm:first-of-type:ps-2 sm:last-of-type:pe-2 text-right">
+                                                                            class="fi-ta-header-cell p-0 first-of-type:ps-1 last-of-type:pe-1 sm:first-of-type:ps-2 sm:last-of-type:pe-2 text-center">
                                                                             <span
                                                                                 class="fi-ta-header-cell-label text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Acciones</span>
                                                                         </th>
@@ -1941,14 +2033,18 @@
                                                                                 L {{ number_format($bill['amount'], 2) }}
                                                                             </td>
                                                                             <td
-                                                                                class="fi-ta-cell p-0 first-of-type:ps-1 last-of-type:pe-1 sm:first-of-type:ps-2 sm:last-of-type:pe-2 py-1.5 whitespace-nowrap text-xs text-right">
-                                                                                <button type="button"
-                                                                                    wire:click="deleteBill({{ $bill['id'] }})"
-                                                                                    class="fi-icon-btn fi-icon-btn-size-xs relative flex items-center justify-center rounded-md outline-none transition duration-75 hover:bg-gray-50 focus:ring-1 dark:hover:bg-gray-700 fi-color-danger text-danger-600 hover:text-danger-500 focus:ring-danger-500/50 dark:text-danger-500 dark:hover:text-danger-400 dark:focus:ring-danger-400/50"
-                                                                                    :class="{'opacity-50 cursor-not-allowed': $wire.current_reconciliation && $wire.current_reconciliation.status.value === 'completed'}"
-                                                                                    :disabled="$wire.current_reconciliation && $wire.current_reconciliation.status.value === 'completed'">
-                                                                                    <span>🗑️</span>
-                                                                                </button>
+                                                                                class="fi-ta-cell p-0 first-of-type:ps-1 last-of-type:pe-1 sm:first-of-type:ps-2 sm:last-of-type:pe-2 py-1.5 whitespace-nowrap text-xs text-center">
+                                                                                <div class="flex justify-center">
+                                                                                    <button type="button"
+                                                                                        wire:click="deleteBill({{ $bill['id'] }})"
+                                                                                        class="fi-icon-btn fi-icon-btn-size-xs relative flex items-center justify-center rounded-md outline-none transition duration-75 hover:bg-gray-50 focus:ring-1 dark:hover:bg-gray-700 fi-color-danger text-danger-600 hover:text-danger-500 focus:ring-danger-500/50 dark:text-danger-500 dark:hover:text-danger-400 dark:focus:ring-danger-400/50"
+                                                                                        :class="{'opacity-50 cursor-not-allowed': $wire.current_reconciliation && $wire.current_reconciliation.status.value === 'completed'}"
+                                                                                        :disabled="$wire.current_reconciliation && $wire.current_reconciliation.status.value === 'completed'">
+                                                                                        <span>
+                                                                                            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                                                                                        </span>
+                                                                                    </button>
+                                                                                </div>
                                                                             </td>
                                                                         </tr>
                                                                     @empty
@@ -1956,7 +2052,9 @@
                                                                             <td colspan="4"
                                                                                 class="px-2 py-3 text-center text-xs text-gray-500 dark:text-gray-400">
                                                                                 <div class="flex flex-col items-center justify-center">
-                                                                                    <span class="text-lg mb-1">💸</span>
+                                                                                    <span class="text-lg mb-1">
+                                                                                        <svg class="w-8 h-8 mx-auto" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/><line x1="5" y1="12" x2="19" y2="12" stroke-width="3"/></svg>
+                                                                                    </span>
                                                                                     <p class="text-xs">No hay gastos registrados</p>
                                                                                     <p class="text-xs mt-0.5">Utilice el botón + para
                                                                                         agregar un gasto</p>
@@ -2050,7 +2148,9 @@
                                     @endif
                                 @else
                                     <div class="text-center py-12">
-                                        <div class="text-gray-400 text-6xl mb-4">👤</div>
+                                        <div class="text-gray-400 text-6xl mb-4">
+                                            <svg class="w-16 h-16 mx-auto" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                                        </div>
                                         <h3 class="text-lg font-medium text-gray-900 mb-2">Seleccione un Empleado</h3>
                                         <p class="text-gray-500">Elija un empleado para ver sus ventas y cobros del día</p>
                                     </div>
