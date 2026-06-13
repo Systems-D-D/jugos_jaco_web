@@ -96,6 +96,7 @@ class SaleService
                 'branch_id' => $saleData['branch_id'],
                 'due_date' => ($paymentTerm === PaymentTermEnum::CREDIT->value) ?
                     ($saleData['due_date'] ?? Carbon::now()->addDays(7)) : null,
+                'client_request_uuid' => $saleData['client_request_uuid'] ?? null,
                 'created_by' => Auth::id(),
                 'updated_by' => Auth::id(),
             ]);
@@ -126,10 +127,15 @@ class SaleService
             DB::commit();
             return $sale->fresh(['client', 'employee', 'details']);
 
+        } catch (\Illuminate\Database\QueryException $qe) {
+            DB::rollBack();
+            Log::error('Error DB en SaleService::createSale: ' . $qe->getMessage());
+            throw $qe;
+
         } catch (Exception $e) {
             DB::rollBack();
             Log::error('Error en SaleService::createSale: ' . $e->getMessage());
-            throw new Exception('Error al crear la venta: ' . $e->getMessage());
+            throw new Exception('Error al crear la venta: ' . $e->getMessage(), $e->getCode());
         }
     }
 
@@ -152,24 +158,22 @@ class SaleService
             if (isset($productData['origin']) && $productData['origin'] === 'api') {
                 $productosAsignados = AssignedProduct::where('employee_id', Auth::user()->employee->id)
                     ->todayAssignments()
-                    ->with([
-                        'details' => function ($query) use ($productData) {
-                            $query->select('id', 'product_id', 'sale_quantity', 'assigned_products_id', 'quantity', 'changes_quantity', 'royalties_quantity')
-                                ->where('product_id', $productData['product_id']);
-                        }
-                    ])
                     ->first();
 
-                if ($productosAsignados && $productosAsignados->details->count() > 0) {
-                    $detail = $productosAsignados->details->first();
+                if ($productosAsignados) {
+                    $detail = DetailAssignedProduct::where('assigned_products_id', $productosAsignados->id)
+                        ->where('product_id', $productData['product_id'])
+                        ->lockForUpdate()
+                        ->first();
 
                     if ($detail) {
                         $nSaleQuantity = ($detail->sale_quantity ?? 0) + $productData['quantity'];
 
-                        if ($detail->quantity < $nSaleQuantity)
+                        if ($detail->quantity < $nSaleQuantity) {
                             throw new Exception(
                                 "La cantidad a vender del producto {$productData['name']} excede la cantidad asignada"
                             );
+                        }
 
                         $detail->update([
                             'sale_quantity' => $nSaleQuantity,

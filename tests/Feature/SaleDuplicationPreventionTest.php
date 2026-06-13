@@ -55,6 +55,7 @@ beforeEach(function () {
     $this->user = $user;
     $this->client = $client;
     $this->product = $product;
+    $this->typePrice = $typePrice;
     $this->productPrice = $productPrice;
     $this->detail = $detail;
 });
@@ -153,6 +154,9 @@ it('creates a sale successfully when no client_request_uuid is provided', functi
         'product_id' => $this->product->id,
         'name' => 'Test Product',
         'code' => 'TST-001',
+        'type_price_id' => $this->typePrice->id,
+        'unit_name' => 'Unidad',
+        'unit_abbreviation' => 'U',
         'quantity' => 5,
         'unit_price_without_tax' => 100,
         'unit_tax_amount' => 0,
@@ -204,6 +208,9 @@ it('updates sale_quantity exactly once per call with lockForUpdate protection', 
         'product_id' => $this->product->id,
         'name' => 'Test Product',
         'code' => 'TST-001',
+        'type_price_id' => $this->typePrice->id,
+        'unit_name' => 'Unidad',
+        'unit_abbreviation' => 'U',
         'quantity' => 10,
         'unit_price_without_tax' => 100,
         'unit_tax_amount' => 0,
