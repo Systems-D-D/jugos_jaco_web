@@ -35,6 +35,7 @@ class Sale extends Model
         'discount_reason',
         'total_amount',
         'notes',
+        'client_request_uuid',
         'created_by',
         'updated_by',
         'confirmed_at',
