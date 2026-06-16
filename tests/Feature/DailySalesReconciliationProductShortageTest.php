@@ -170,3 +170,79 @@ it('handles null type_price_id gracefully', function () {
     expect($reconciliation->type_price_id)->toBeNull();
     expect($reconciliation->typePrice)->toBeNull();
 });
+
+// Closure validation
+it('blocks closure when remaining products exist and no type price is selected', function () {
+    $this->actingAs($this->user);
+
+    Livewire::test(CreateReconciliation::class, ['employee_id' => $this->employee->id])
+        ->set('cash_received', 1000.00)
+        ->call('initializeReconciliation')
+        ->call('saveReconciliation')
+        ->assertSee('Debe seleccionar un precio de lista porque existen productos sobrantes.');
+
+    $reconciliation = DailySalesReconciliation::latest()->first();
+    expect($reconciliation->status->value)->toBe('pending');
+});
+
+it('allows closure when remaining products exist and a type price is selected', function () {
+    $this->actingAs($this->user);
+
+    Livewire::test(CreateReconciliation::class, ['employee_id' => $this->employee->id])
+        ->set('type_price_id', $this->typePrice->id)
+        ->set('cash_received', 1000.00)
+        ->call('initializeReconciliation')
+        ->call('saveReconciliation')
+        ->assertSessionHas('success', 'Cuadre guardado correctamente');
+
+    $reconciliation = DailySalesReconciliation::latest()->first();
+    expect($reconciliation->status->value)->toBe('completed');
+    expect($reconciliation->type_price_id)->toEqual($this->typePrice->id);
+    expect($reconciliation->product_shortage_total)->toEqual(750.00);
+});
+
+it('allows closure when no remaining products exist and no type price is selected', function () {
+    // Remove all assigned product details so the remaining_products array is truly empty.
+    $this->assignedProduct->details()->delete();
+
+    $this->actingAs($this->user);
+
+    Livewire::test(CreateReconciliation::class, ['employee_id' => $this->employee->id])
+        ->set('cash_received', 1000.00)
+        ->call('initializeReconciliation')
+        ->call('saveReconciliation')
+        ->assertSessionHas('success', 'Cuadre guardado correctamente');
+
+    $reconciliation = DailySalesReconciliation::latest()->first();
+    expect($reconciliation->status->value)->toBe('completed');
+    expect($reconciliation->type_price_id)->toBeNull();
+});
+
+it('renders incremental row numbers in the sales table instead of sale ids', function () {
+    $this->actingAs($this->user);
+
+    // Create two sales for the reconciled employee with IDs far from the row
+    // indices (1, 2) so assertDontSee is not fooled by other rendered numbers.
+    \App\Models\Sale::unguard();
+    $sale1 = \App\Models\Sale::factory()->create([
+        'id' => 999001,
+        'employee_id' => $this->employee->id,
+        'sale_date' => now(),
+        'payment_term' => \App\Enums\PaymentTermEnum::CASH,
+        'payment_method' => \App\Enums\PaymentTypeEnum::CASH,
+    ]);
+    $sale2 = \App\Models\Sale::factory()->create([
+        'id' => 999002,
+        'employee_id' => $this->employee->id,
+        'sale_date' => now(),
+        'payment_term' => \App\Enums\PaymentTermEnum::CASH,
+        'payment_method' => \App\Enums\PaymentTypeEnum::CASH,
+    ]);
+    \App\Models\Sale::reguard();
+
+    Livewire::test(CreateReconciliation::class, ['employee_id' => $this->employee->id])
+        ->assertSeeHtml('<span class="fi-ta-header-cell-label text-sm font-semibold text-gray-950 dark:text-white">#</span>')
+        ->assertSeeInOrder(['1', '2'])
+        ->assertDontSee((string) $sale1->id)
+        ->assertDontSee((string) $sale2->id);
+});

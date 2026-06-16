@@ -15,6 +15,15 @@ pest()->extend(Tests\TestCase::class)
  // ->use(Illuminate\Foundation\Testing\RefreshDatabase::class)
     ->in('Feature');
 
+beforeEach(function () {
+    if (config('database.default') !== 'sqlite' || config('database.connections.sqlite.database') !== ':memory:') {
+        throw new RuntimeException(
+            'Tests must run against SQLite in-memory database. Current connection: '
+            . config('database.default') . ' / ' . config('database.connections.' . config('database.default') . '.database')
+        );
+    }
+});
+
 /*
 |--------------------------------------------------------------------------
 | Expectations
