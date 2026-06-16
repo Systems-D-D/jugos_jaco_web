@@ -7,13 +7,13 @@ use App\Filament\Support\FilamentNotification;
 use App\Models\DetailAssignedProduct;
 use App\Models\FinishedProductInventory;
 use App\Services\ManagementInventoryService;
-use DragonCode\Contracts\Cashier\Config\Details;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\RelationManagers\RelationManager;
 use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
 use Filament\Tables\Actions\Action;
@@ -66,39 +66,62 @@ class DetailsRelationManager extends RelationManager
             ])
             ->headerActions([
                 Tables\Actions\CreateAction::make()
-                    ->before(function (array $data) {
-                        // Verificar si hay suficiente stock antes de crear
-                        $inventory = FinishedProductInventory::where([
-                            'product_id' => $data['product_id'],
-                            'branch_id' => $this->getOwnerRecord()->employee->branch_id
-                        ])->first();
+                    ->using(function (array $data): Model {
+                        return DB::transaction(function () use ($data) {
+                            $inventory = FinishedProductInventory::where([
+                                'product_id' => $data['product_id'],
+                                'branch_id' => $this->getOwnerRecord()->employee->branch_id,
+                            ])->lockForUpdate()->first();
 
-                        if (!$inventory) {
-                            FilamentNotification::error(
-                                "No se encontró el inventario para este producto."
-                            );
-                            throw ValidationException::withMessages([
-                                'product_id' => "No se encontró el inventario para este producto."
-                            ]);
-                        }
+                            if (!$inventory) {
+                                FilamentNotification::error(
+                                    "No se encontró el inventario para este producto."
+                                );
+                                throw ValidationException::withMessages([
+                                    'product_id' => "No se encontró el inventario para este producto.",
+                                ]);
+                            }
 
-                        if ($data['quantity'] > $inventory->stock) {
-                            FilamentNotification::error(
-                                "No hay suficiente stock para asignar {$data['quantity']} productos."
-                            );
-                            throw ValidationException::withMessages([
-                                'quantity' => "No hay suficiente stock para asignar {$data['quantity']} productos."
+                            $existing = DetailAssignedProduct::where([
+                                'assigned_products_id' => $this->getOwnerRecord()->id,
+                                'product_id' => $data['product_id'],
+                            ])->first();
+
+                            if ($existing) {
+                                FilamentNotification::error(
+                                    'El producto ya está asignado en esta asignación. Edite la cantidad existente en lugar de duplicarlo.'
+                                );
+                                throw ValidationException::withMessages([
+                                    'product_id' => 'Este producto ya está asignado en la asignación actual.',
+                                ]);
+                            }
+
+                            if ($data['quantity'] > $inventory->stock) {
+                                FilamentNotification::error(
+                                    "No hay suficiente stock para asignar {$data['quantity']} productos."
+                                );
+                                throw ValidationException::withMessages([
+                                    'quantity' => "No hay suficiente stock para asignar {$data['quantity']} productos.",
+                                ]);
+                            }
+
+                            $record = DetailAssignedProduct::create([
+                                'assigned_products_id' => $this->getOwnerRecord()->id,
+                                'product_id' => $data['product_id'],
+                                'quantity' => $data['quantity'],
+                                'sale_quantity' => 0,
+                                'returned_quantity' => 0,
+                                'changes_quantity' => 0,
+                                'royalties_quantity' => 0,
                             ]);
-                        }
-                    })
-                    ->after(function (Model $record) {
-                        // Solo procesamos el movimiento si se creó correctamente el registro
-                        if ($record && $record->exists) {
+
                             $this->managementInventoryCreateDetail($record);
-                        }
+
+                            return $record;
+                        });
                     })
                     ->label('Agregar Productos Asignados')
-                    ->visible(fn() => $this->disabledForPastOrFutureDates())
+                    ->visible(fn () => $this->disabledForPastOrFutureDates())
                     ->modalHeading('Asignar producto al empleado'),
             ])
             ->actions([
@@ -109,49 +132,62 @@ class DetailsRelationManager extends RelationManager
                                 "No se puede eliminar el producto asignado porque ya se han vendido {$record->sale_quantity} productos."
                             );
                             throw ValidationException::withMessages([
-                                'record' => "No se puede eliminar el producto asignado porque ya se han vendido {$record->sale_quantity} productos."
+                                'record' => "No se puede eliminar el producto asignado porque ya se han vendido {$record->sale_quantity} productos.",
                             ]);
                         }
 
                         $this->managementInventoryDeleteDetail($record);
                     })
                     ->iconButton()
-                    ->visible(fn() => $this->disabledForPastOrFutureDates()),
+                    ->visible(fn () => $this->disabledForPastOrFutureDates()),
                 Tables\Actions\EditAction::make()
                     ->iconButton()
-                    ->visible(fn() => $this->disabledForPastOrFutureDates())
+                    ->visible(fn () => $this->disabledForPastOrFutureDates())
                     ->mutateRecordDataUsing(function (array $data, Model $record): array {
                         $data['original_quantity'] = $record->quantity;
                         return $data;
                     })
                     ->using(function (Model $record, array $data): Model {
-                        // Guardamos la cantidad original antes de actualizar
-                        $originalQuantity = $data['original_quantity'] ?? $record->quantity;
+                        return DB::transaction(function () use ($record, $data) {
+                            $originalQuantity = $data['original_quantity'] ?? $record->quantity;
 
-                        // Verificar si la cantidad a actualizar no es menor que la cantidad vendida
-                        $salesQuantity = $record->sale_quantity ?? 0;
-                        if ($data['quantity'] < $salesQuantity) {
-                            FilamentNotification::error(
-                                "No se puede reducir la cantidad por debajo de {$salesQuantity} productos que ya han sido vendidos."
-                            );
+                            $salesQuantity = $record->sale_quantity ?? 0;
+                            if ($data['quantity'] < $salesQuantity) {
+                                FilamentNotification::error(
+                                    "No se puede reducir la cantidad por debajo de {$salesQuantity} productos que ya han sido vendidos."
+                                );
+
+                                return $record;
+                            }
+
+                            unset($data['original_quantity']);
+                            $record->update($data);
+
+                            $this->managementInventoryUpdateDetail($record, $originalQuantity);
 
                             return $record;
-                        }
-                        
-                        // Actualizamos el registro con los nuevos datos (excepto original_quantity)
-                        unset($data['original_quantity']);
-                        $record->update($data);
-                        
-                        // Actualizamos el inventario basado en la diferencia
-                        $this->managementInventoryUpdateDetail($record, $originalQuantity);
-                        
-                        return $record;
+                        });
                     }),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
                     Tables\Actions\DeleteBulkAction::make()
-                        ->visible(fn() => $this->disabledForPastOrFutureDates()),
+                        ->before(function (\Illuminate\Database\Eloquent\Collection $records) {
+                            DB::transaction(function () use ($records) {
+                                foreach ($records as $record) {
+                                    if ($record->sale_quantity > 0) {
+                                        FilamentNotification::error(
+                                            "No se puede eliminar {$record->product->name} porque ya se han vendido {$record->sale_quantity} productos."
+                                        );
+                                        throw ValidationException::withMessages([
+                                            'record' => "No se puede eliminar {$record->product->name} porque ya tiene ventas registradas.",
+                                        ]);
+                                    }
+                                    $this->managementInventoryDeleteDetail($record);
+                                }
+                            });
+                        })
+                        ->visible(fn () => $this->disabledForPastOrFutureDates()),
                 ]),
             ]);
     }
@@ -166,7 +202,7 @@ class DetailsRelationManager extends RelationManager
     {
         $product = FinishedProductInventory::where([
             'product_id' => $record->product_id,
-            'branch_id' => $record->assignedProduct->employee->branch_id
+            'branch_id' => $record->assignedProduct->employee->branch_id,
         ])->first();
 
         app(ManagementInventoryService::class)->processMovement(
@@ -174,7 +210,7 @@ class DetailsRelationManager extends RelationManager
             quantity: $record->quantity,
             type: TypeInventoryManagementEnum::SALIDA->value,
             description: 'Asignación de producto al empleado: ' . $record->assignedProduct->employee->first_name . ' ' . $record->assignedProduct->employee->last_name,
-            referenceId: $record->assignedProduct->id
+            referenceId: $record->assignedProduct->id,
         );
     }
 
@@ -182,7 +218,7 @@ class DetailsRelationManager extends RelationManager
     {
         $product = FinishedProductInventory::where([
             'product_id' => $record->product_id,
-            'branch_id' => $record->assignedProduct->employee->branch_id
+            'branch_id' => $record->assignedProduct->employee->branch_id,
         ])->first();
 
         app(ManagementInventoryService::class)->processMovement(
@@ -190,7 +226,7 @@ class DetailsRelationManager extends RelationManager
             quantity: $record->quantity,
             type: TypeInventoryManagementEnum::ENTRADA->value,
             description: 'Eliminación de producto asignado al empleado: ' . $record->assignedProduct->employee->first_name . ' ' . $record->assignedProduct->employee->last_name,
-            referenceId: $record->assignedProduct->id
+            referenceId: $record->assignedProduct->id,
         );
     }
 
@@ -198,28 +234,26 @@ class DetailsRelationManager extends RelationManager
     {
         $product = FinishedProductInventory::where([
             'product_id' => $record->product_id,
-            'branch_id' => $record->assignedProduct->employee->branch_id
+            'branch_id' => $record->assignedProduct->employee->branch_id,
         ])->first();
 
         if (!$product) {
             Log::error('No se encontró el inventario del producto para actualizar', [
                 'product_id' => $record->product_id,
-                'branch_id' => $record->assignedProduct->employee->branch_id
+                'branch_id' => $record->assignedProduct->employee->branch_id,
             ]);
             return;
         }
 
         $difference = $originalQuantity - $record->quantity;
 
-        // Si difference es positivo, significa que la cantidad disminuyó (devolver al inventario)
-        // Si difference es negativo, significa que la cantidad aumentó (sacar más del inventario)
         if ($difference > 0) {
             app(ManagementInventoryService::class)->processMovement(
                 model: $product,
                 quantity: abs($difference),
                 type: TypeInventoryManagementEnum::ENTRADA->value,
                 description: 'Ajuste de producto asignado al empleado: ' . $record->assignedProduct->employee->first_name . ' ' . $record->assignedProduct->employee->last_name,
-                referenceId: $record->assignedProduct->id
+                referenceId: $record->assignedProduct->id,
             );
         } elseif ($difference < 0) {
             app(ManagementInventoryService::class)->processMovement(
@@ -227,7 +261,7 @@ class DetailsRelationManager extends RelationManager
                 quantity: abs($difference),
                 type: TypeInventoryManagementEnum::SALIDA->value,
                 description: 'Ajuste de producto asignado al empleado: ' . $record->assignedProduct->employee->first_name . ' ' . $record->assignedProduct->employee->last_name,
-                referenceId: $record->assignedProduct->id
+                referenceId: $record->assignedProduct->id,
             );
         }
     }

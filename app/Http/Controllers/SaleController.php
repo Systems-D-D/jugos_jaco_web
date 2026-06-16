@@ -62,16 +62,46 @@ class SaleController extends Controller
 
             $this->validateExistingReconciliation($employeeId);
 
+            if ($uuid = $request->input('client_request_uuid')) {
+                $existingSale = Sale::where('client_request_uuid', $uuid)->first();
+                if ($existingSale) {
+                    return $this->successResponse(
+                        $existingSale->id,
+                        "Venta #INV-{$existingSale->id} ya registrada"
+                    );
+                }
+            }
+
             $saleData = $this->prepareSaleData(collect($request->validated())->except('products')->toArray());
-
             $productsSaleData = $this->prepareSaleDetailsData($request['products']);
-
             $sale = $this->saleService->createSale($saleData, $productsSaleData);
+
             return $this->successResponse($sale->id, "Venta #INV-{$sale->id} creada con éxito");
+
+        } catch (\Illuminate\Database\QueryException $qe) {
+            if (isset($qe->errorInfo[1]) && $qe->errorInfo[1] === 1062) {
+                $uuid = $request->input('client_request_uuid');
+                if ($uuid) {
+                    $existingSale = Sale::where('client_request_uuid', $uuid)->first();
+                    if ($existingSale) {
+                        return $this->successResponse(
+                            $existingSale->id,
+                            "Venta #INV-{$existingSale->id} ya registrada"
+                        );
+                    }
+                }
+                return $this->errorResponse(
+                    new Exception("Conflicto de UUID"),
+                    409,
+                    "Conflicto: la venta con este UUID ya fue procesada"
+                );
+            }
+            return $this->errorResponse($qe, 500, "Error al crear la venta");
+
         } catch (Exception $e) {
             return $this->errorResponse(
                 $e,
-                500,
+                $e->getCode() ?: 500,
                 "Error al crear la venta"
             );
         }
@@ -139,6 +169,7 @@ class SaleController extends Controller
             'payment_method' => $data['payment_method'],
             'payment_term' => $data['payment_term'],
             'branch_id' => Auth::user()->employee->branch_id,
+            'client_request_uuid' => $data['client_request_uuid'] ?? null,
         ];
     }
 
