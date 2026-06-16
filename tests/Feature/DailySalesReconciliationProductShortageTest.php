@@ -216,3 +216,25 @@ it('allows closure when no remaining products exist and no type price is selecte
     expect($reconciliation->status->value)->toBe('completed');
     expect($reconciliation->type_price_id)->toBeNull();
 });
+
+it('renders incremental row numbers in the sales table instead of sale ids', function () {
+    $this->actingAs($this->user);
+
+    // Create two sales; the table should render 1 and 2 regardless of their DB IDs.
+    \App\Models\Sale::factory()->create([
+        'employee_id' => $this->employee->id,
+        'sale_date' => now(),
+        'payment_term' => \App\Enums\PaymentTermEnum::CASH,
+        'payment_method' => \App\Enums\PaymentTypeEnum::CASH,
+    ]);
+    \App\Models\Sale::factory()->create([
+        'employee_id' => $this->employee->id,
+        'sale_date' => now(),
+        'payment_term' => \App\Enums\PaymentTermEnum::CASH,
+        'payment_method' => \App\Enums\PaymentTypeEnum::CASH,
+    ]);
+
+    Livewire::test(CreateReconciliation::class, ['employee_id' => $this->employee->id])
+        ->assertSeeHtml('<span class="fi-ta-header-cell-label text-sm font-semibold text-gray-950 dark:text-white">#</span>')
+        ->assertSeeInOrder(['1', '2']);
+});

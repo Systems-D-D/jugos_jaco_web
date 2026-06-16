@@ -410,12 +410,9 @@
                                                                 <thead
                                                                     class="fi-ta-header-ctn divide-y divide-gray-200 dark:divide-white/5">
                                                                     <tr class="bg-gray-50 dark:bg-white/5">
-                                                                        <th
-                                                                            class="fi-ta-header-cell px-3 py-3.5 sm:first-of-type:ps-6 sm:last-of-type:pe-6 text-start">
-                                                                            <span
-                                                                                class="group flex w-full items-center gap-x-1 whitespace-nowrap justify-start">
-                                                                                <span
-                                                                                    class="fi-ta-header-cell-label text-sm font-semibold text-gray-950 dark:text-white">ID</span>
+                                                                        <th class="fi-ta-header-cell px-3 py-3.5 sm:first-of-type:ps-6 sm:last-of-type:pe-6 text-start">
+                                                                            <span class="group flex w-full items-center gap-x-1 whitespace-nowrap justify-start">
+                                                                                <span class="fi-ta-header-cell-label text-sm font-semibold text-gray-950 dark:text-white">#</span>
                                                                             </span>
                                                                         </th>
                                                                         <th
@@ -466,12 +463,10 @@
                                                                     @foreach($sales as $sale)
                                                                         <tr
                                                                             class="fi-ta-row [@media(hover:hover)]:transition [@media(hover:hover)]:duration-75 hover:bg-gray-50 dark:hover:bg-white/5">
-                                                                            <td
-                                                                                class="fi-ta-cell p-0 first-of-type:ps-1 last-of-type:pe-1 sm:first-of-type:ps-3 sm:last-of-type:pe-3">
+                                                                            <td class="fi-ta-cell p-0 first-of-type:ps-1 last-of-type:pe-1 sm:first-of-type:ps-3 sm:last-of-type:pe-3">
                                                                                 <div class="fi-ta-col-wrp px-3 py-4">
-                                                                                    <div
-                                                                                        class="fi-ta-text text-sm leading-6 text-gray-950 dark:text-white">
-                                                                                        {{ $sale['id'] }}
+                                                                                    <div class="fi-ta-text text-sm leading-6 text-gray-950 dark:text-white">
+                                                                                        {{ $loop->iteration }}
                                                                                     </div>
                                                                                 </div>
                                                                             </td>
