@@ -5,7 +5,6 @@ namespace App\Services;
 use App\Enums\TypeInventoryManagementEnum;
 use App\Models\ManagementInventory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 
@@ -84,7 +83,9 @@ class ManagementInventoryService
         ?int $referenceId = null
     ): ManagementInventory {
         return DB::transaction(function () use ($model, $quantity, $description, $referenceId) {
-            $this->updateStock($model, $quantity);
+            DB::table($model->getTable())
+                ->where('id', $model->id)
+                ->increment('stock', $quantity);
 
             return $this->registerMovement(
                 $model,
@@ -112,9 +113,15 @@ class ManagementInventoryService
         ?int $referenceId = null
     ): ManagementInventory {
         return DB::transaction(function () use ($model, $quantity, $description, $referenceId) {
-            $this->checkAvailableStock($model, $quantity);
+            $affected = DB::table($model->getTable())
+                ->where('id', $model->id)
+                ->where('stock', '>=', $quantity)
+                ->decrement('stock', $quantity);
 
-            $this->updateStock($model, -$quantity);
+            if ($affected === 0) {
+                $currentStock = DB::table($model->getTable())->where('id', $model->id)->value('stock');
+                throw new \RuntimeException('No hay suficiente stock disponible. Stock: ' . $currentStock . ', Solicitado: ' . $quantity);
+            }
 
             return $this->registerMovement(
                 $model,
@@ -142,9 +149,15 @@ class ManagementInventoryService
         ?int $referenceId = null
     ): ManagementInventory {
         return DB::transaction(function () use ($model, $quantity, $description, $referenceId) {
-            $this->checkAvailableStock($model, $quantity);
+            $affected = DB::table($model->getTable())
+                ->where('id', $model->id)
+                ->where('stock', '>=', $quantity)
+                ->decrement('stock', $quantity);
 
-            $this->updateStock($model, -$quantity);
+            if ($affected === 0) {
+                $currentStock = DB::table($model->getTable())->where('id', $model->id)->value('stock');
+                throw new \RuntimeException('No hay suficiente stock disponible. Stock: ' . $currentStock . ', Solicitado: ' . $quantity);
+            }
 
             return $this->registerMovement(
                 $model,
@@ -172,7 +185,9 @@ class ManagementInventoryService
         ?int $referenceId = null
     ): ManagementInventory {
         return DB::transaction(function () use ($model, $quantity, $description, $referenceId) {
-            $this->updateStock($model, $quantity);
+            DB::table($model->getTable())
+                ->where('id', $model->id)
+                ->increment('stock', $quantity);
 
             return $this->registerMovement(
                 $model,
@@ -184,43 +199,4 @@ class ManagementInventoryService
         });
     }
 
-    /**
-     * Actualiza el stock de un modelo
-     *
-     * @param Model $model El modelo cuyo stock se actualizará
-     * @param float $quantity La cantidad a añadir (positiva) o restar (negativa)
-     * @return bool Si la actualización tuvo éxito
-     */
-    protected function updateStock(Model $model, float $quantity): bool
-    {
-        if (Arr::has($model, 'stock')) {
-            $model->stock += $quantity;
-            return $model->save();
-        } 
-
-        throw new \RuntimeException('El modelo no tiene una propiedad de stock o un método para actualizarlo');
-    }
-
-    /**
-     * Verifica si hay suficiente stock disponible
-     *
-     * @param Model $model El modelo a verificar
-     * @param float $quantity La cantidad necesaria
-     * @return bool Verdadero si hay suficiente stock
-     * @throws \RuntimeException Si no hay suficiente stock
-     */
-    protected function checkAvailableStock(Model $model, float $quantity): bool
-    {
-        $availableStock = 0;
-
-        if (Arr::has($model, 'stock')) {
-            $availableStock = $model->stock;
-        } else {
-            throw new \RuntimeException('No se puede determinar el stock disponible para este modelo');
-        }
-
-        if ($availableStock < $quantity) throw new \RuntimeException('No hay suficiente stock disponible. Stock: ' . $availableStock . ', Solicitado: ' . $quantity);
-
-        return true;
-    }
 }
