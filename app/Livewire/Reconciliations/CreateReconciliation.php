@@ -463,6 +463,15 @@ class CreateReconciliation extends Component
     // Método para guardar el cuadre (llamado desde el botón)
     public function saveReconciliation()
     {
+        // Validar que se haya seleccionado un precio de lista cuando hay productos sobrantes
+        // INFO: Using sum('remaining') > 0 instead of !empty($this->remaining_products) because
+        // remaining_products array may contain assigned products with zero remaining quantity,
+        // and the requirement is to enforce price-list selection only when actual remaining stock exists.
+        if (collect($this->remaining_products)->sum('remaining') > 0 && empty($this->type_price_id)) {
+            session()->flash('error', 'Debe seleccionar un precio de lista porque existen productos sobrantes.');
+            return;
+        }
+
         // Validar que se haya seleccionado un empleado
         if (empty($this->employee_id)) {
             session()->flash('error', 'Debe seleccionar un empleado para crear el cuadre');

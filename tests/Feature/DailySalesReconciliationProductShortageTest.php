@@ -170,3 +170,49 @@ it('handles null type_price_id gracefully', function () {
     expect($reconciliation->type_price_id)->toBeNull();
     expect($reconciliation->typePrice)->toBeNull();
 });
+
+// Closure validation
+it('blocks closure when remaining products exist and no type price is selected', function () {
+    $this->actingAs($this->user);
+
+    Livewire::test(CreateReconciliation::class, ['employee_id' => $this->employee->id])
+        ->set('cash_received', 1000.00)
+        ->call('initializeReconciliation')
+        ->call('saveReconciliation')
+        ->assertSee('Debe seleccionar un precio de lista porque existen productos sobrantes.');
+
+    $reconciliation = DailySalesReconciliation::latest()->first();
+    expect($reconciliation->status->value)->toBe('pending');
+});
+
+it('allows closure when remaining products exist and a type price is selected', function () {
+    $this->actingAs($this->user);
+
+    Livewire::test(CreateReconciliation::class, ['employee_id' => $this->employee->id])
+        ->set('type_price_id', $this->typePrice->id)
+        ->set('cash_received', 1000.00)
+        ->call('initializeReconciliation')
+        ->call('saveReconciliation')
+        ->assertSessionHas('success', 'Cuadre guardado correctamente');
+
+    $reconciliation = DailySalesReconciliation::latest()->first();
+    expect($reconciliation->status->value)->toBe('completed');
+    expect($reconciliation->type_price_id)->toEqual($this->typePrice->id);
+    expect($reconciliation->product_shortage_total)->toEqual(750.00);
+});
+
+it('allows closure when no remaining products exist and no type price is selected', function () {
+    $this->detail->update(['sale_quantity' => 100]);
+
+    $this->actingAs($this->user);
+
+    Livewire::test(CreateReconciliation::class, ['employee_id' => $this->employee->id])
+        ->set('cash_received', 1000.00)
+        ->call('initializeReconciliation')
+        ->call('saveReconciliation')
+        ->assertSessionHas('success', 'Cuadre guardado correctamente');
+
+    $reconciliation = DailySalesReconciliation::latest()->first();
+    expect($reconciliation->status->value)->toBe('completed');
+    expect($reconciliation->type_price_id)->toBeNull();
+});
