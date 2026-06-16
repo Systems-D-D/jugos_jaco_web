@@ -17,6 +17,7 @@ class UnitFactory extends Factory
         return [
             'name' => fake()->unique()->word(),
             'abbreviation' => fake()->lexify('??'),
+            'category' => fake()->randomElement(['count', 'weight', 'volume', 'length', 'area']),
             'is_active' => true,
         ];
     }
