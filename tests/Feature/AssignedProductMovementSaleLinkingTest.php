@@ -11,11 +11,11 @@ use App\Models\TypePrice;
 use App\Models\User;
 use App\Services\AssignedProductMovementService;
 use App\Services\SaleService;
-use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Livewire\Livewire;
 
-uses(DatabaseTransactions::class);
+uses(RefreshDatabase::class);
 
 // --- Task 2: AssignedProductMovementService tests ---
 

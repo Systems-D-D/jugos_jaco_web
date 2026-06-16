@@ -2,6 +2,9 @@
 
 use App\Models\AssignedProduct;
 use App\Models\Branch;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+
+uses(RefreshDatabase::class);
 use App\Models\Category;
 use App\Models\Client;
 use App\Models\ClientVisit;
