@@ -33,11 +33,11 @@ class CreateReconciliation extends Component
     // Form properties
     public ?string $employee_id = null;
     public ?string $reconciliation_date = null;
-    
+
     // Sales data
     public array $sales = [];
     public array $payments = [];
-    
+
     // Totals
     public float $total_cash_sales = 0.0;
     public float $total_credit_sales = 0.0;
@@ -52,20 +52,20 @@ class CreateReconciliation extends Component
     public float $cash_difference = 0.0;
     public float $deposits_made = 0.0;
     public float $deposit_difference = 0.0;
-    
+
     // Deposit form properties
     public float $deposit_amount = 0.0;
     public ?string $deposit_bank = null;
     public ?string $deposit_reference = null;
     public array $deposits = [];
-    
+
     // Bill form properties
     public ?string $bill_description = null;
     public float $bill_amount = 0.0;
     public ?string $bill_reference = null;
     public array $bills = [];
     public float $total_bills = 0.0;
-    
+
     // Product return form properties
     public ?string $return_product_id = null;
     public ?string $return_type = null;
@@ -73,7 +73,7 @@ class CreateReconciliation extends Component
     public int $return_quantity = 1;
     public bool $return_affects_inventory = true;
     public array $returns = [];
-    
+
     // Movement form properties
     public array $movements = [];
 
@@ -83,20 +83,20 @@ class CreateReconciliation extends Component
     public ?string $type_price_id = null;
     public array $type_prices = [];
     public float $product_shortage_total = 0.0;
-    
+
     // Product search properties (simplified)
     public string $product_search = '';
-    
+
     // Collections for dropdowns
     public $employees;
     public $banks;
     public $products;
     public $return_types;
-    
+
     // State
     public bool $reconciliation_created = false;
     public ?DailySalesReconciliation $current_reconciliation = null;
-    
+
     protected $rules = [
         'employee_id' => 'required|exists:employees,id',
         'return_product_id' => 'required|exists:products,id',
@@ -105,7 +105,7 @@ class CreateReconciliation extends Component
         'return_quantity' => 'required|integer|min:1',
         'return_affects_inventory' => 'boolean',
     ];
-    
+
     protected $messages = [
         'employee_id.required' => 'Debe seleccionar un empleado.',
         'employee_id.exists' => 'El empleado seleccionado no es válido.',
@@ -128,82 +128,82 @@ class CreateReconciliation extends Component
         $this->products = Product::where('is_active', true)->get();
         $this->return_types = ProductReturnTypeEnum::getOptions();
         $this->loadTypePrices();
-        
+
         // Establecer "Producto dañado" como valor predeterminado
         $this->return_type = ProductReturnTypeEnum::DAMAGED->value;
-        
+
         if ($employee_id) {
             $this->employee_id = $employee_id;
             $this->loadEmployeeDataOnly();
         }
-        
+
         $this->loadDeposits();
         $this->loadBills();
     }
-    
+
     public function updatedEmployeeId()
     {
         if ($this->employee_id) {
             // Verificar si existe un cuadre para la fecha seleccionada y está completado
             $selectedDate = Carbon::parse($this->reconciliation_date);
             $existing = DailySalesReconciliation::getForEmployeeAndDate($this->employee_id, $selectedDate);
-            
+
             if ($existing && $existing->status === ReconciliationStatusEnum::COMPLETED) {
                 session()->flash('warning', 'El empleado seleccionado ya tiene un cuadre completado para la fecha seleccionada.');
             }
-            
+
             // Solo cargamos los datos del empleado pero no creamos el cuadre automáticamente
             $this->loadEmployeeDataOnly();
         } else {
             $this->resetData();
         }
     }
-    
+
     public function updatedReconciliationDate()
     {
         if ($this->employee_id && $this->reconciliation_date) {
             // Verificar si existe un cuadre para la nueva fecha seleccionada
             $selectedDate = Carbon::parse($this->reconciliation_date);
             $existing = DailySalesReconciliation::getForEmployeeAndDate($this->employee_id, $selectedDate);
-            
+
             if ($existing && $existing->status === ReconciliationStatusEnum::COMPLETED) {
                 session()->flash('warning', 'El empleado seleccionado ya tiene un cuadre completado para la fecha seleccionada.');
             }
-            
+
             // Recargar los datos para la nueva fecha
             $this->loadEmployeeDataOnly();
             $this->loadRemainingProducts();
         }
     }
-    
+
     // Método para cargar solo los datos del empleado sin crear el cuadre
     protected function loadEmployeeDataOnly()
     {
         if (!$this->employee_id) {
             return;
         }
-        
+
         $selectedDate = Carbon::parse($this->reconciliation_date);
-        
+
         // Verificar si ya existe un cuadre para la fecha seleccionada
         $existing = DailySalesReconciliation::getForEmployeeAndDate($this->employee_id, $selectedDate);
-            
+
         if ($existing) {
             $this->current_reconciliation = $existing;
             $this->reconciliation_created = true;
-            
+
             // Si el cuadre está completado, no cargamos los datos
             if ($existing->status === ReconciliationStatusEnum::COMPLETED) {
                 return;
             }
-            
+
             // Cargar el efectivo recibido si existe
             $this->cash_received = $existing->total_cash_received;
-            
+
             $this->loadDeposits();
             $this->loadBills();
         }
-        
+
         // Load sales for the selected date and employee
         $this->sales = Sale::with(['client'])
             ->where('employee_id', $this->employee_id)
@@ -220,7 +220,7 @@ class CreateReconciliation extends Component
                     'payment_method' => $sale->payment_method->getLabel(),
                 ];
             })->toArray();
-        
+
         // Load today's payments/collections for the selected employee
         $this->payments = Payment::with(['model.sale.client'])
             ->where('model_type', 'App\\Models\\AccountReceivable')
@@ -239,75 +239,75 @@ class CreateReconciliation extends Component
                     'method' => $payment->payment_method->getLabel(),
                 ];
             })->toArray();
-        
+
         $this->loadReturns();
         $this->loadMovements();
         $this->loadRemainingProducts();
         $this->calculateTotals();
     }
-    
+
     // Método completo que carga datos y crea el cuadre
     protected function loadEmployeeData()
     {
         $this->loadEmployeeDataOnly();
-        
+
         if (!$this->reconciliation_created) {
             $this->createPendingReconciliation();
         }
     }
-    
+
     protected function calculateTotals()
     {
         $this->total_cash_sales = collect($this->sales)
             ->where('type', PaymentTermEnum::CASH->getLabel())
             ->sum('total');
-            
+
         $this->total_credit_sales = collect($this->sales)
             ->where('type', PaymentTermEnum::CREDIT->getLabel())
             ->sum('total');
-            
+
         $this->total_sales = $this->total_cash_sales + $this->total_credit_sales;
-        
+
         // Calcular cobros desglosados por método de pago
         $this->total_cash_collections = collect($this->payments)
             ->where('method', PaymentTypeEnum::CASH->getLabel())
             ->sum('amount');
-            
+
         $this->total_deposit_collections = collect($this->payments)
             ->where('method', PaymentTypeEnum::DEPOSIT->getLabel())
             ->sum('amount');
-            
+
         $this->total_collections = collect($this->payments)
             ->sum('amount');
-            
+
         // Calcular ventas pagadas con depósitos
         $this->total_deposit_sales = collect($this->sales)
             ->where('type', PaymentTermEnum::CASH->getLabel())
             ->where('payment_method', PaymentTypeEnum::DEPOSIT->getLabel())
             ->sum('total');
-            
+
         // Calcular efectivo esperado (solo ventas al contado con método de pago en efectivo + cobros en efectivo - gastos)
         $cash_only_sales = collect($this->sales)
             ->where('type', PaymentTermEnum::CASH->getLabel())
             ->where('payment_method', PaymentTypeEnum::CASH->getLabel())
             ->sum('total');
-            
+
         // Calcular total de gastos
         $this->calculateBillTotals();
-        
+
         // El efectivo esperado se reduce por los gastos realizados, pero nunca puede ser negativo
         $this->total_cash_expected = max(0, $cash_only_sales + $this->total_cash_collections) - $this->total_bills + $this->product_shortage_total;
-        
+
         // Calcular depósitos esperados (ventas pagadas con depósitos + cobros en depósitos)
         $this->total_deposit_expected = $this->total_deposit_sales + $this->total_deposit_collections;
-        
+
         // Calcular diferencia de efectivo (efectivo recibido - efectivo esperado)
         $this->calculateCashDifference();
-        
+
         // Calcular total de depósitos realizados y diferencia de depósitos
         $this->calculateDepositTotals();
     }
-    
+
     // Método para iniciar el cuadre (llamado desde el botón)
     public function initializeReconciliation()
     {
@@ -321,30 +321,30 @@ class CreateReconciliation extends Component
 
         session()->flash('success', 'Cuadre inicializado correctamente.');
     }
-    
+
     protected function createPendingReconciliation()
     {
         if (!$this->employee_id) {
             return null;
         }
-        
+
         $today = $this->reconciliation_date;
-        
+
         // Check if reconciliation already exists for today
         $existing = DailySalesReconciliation::getForEmployeeAndDate($this->employee_id, $today);
-            
+
         if ($existing) {
             $this->current_reconciliation = $existing;
             $this->reconciliation_created = true;
             return $existing;
         }
-        
+
         // Calcular el efectivo esperado y la diferencia de efectivo
         $this->calculateCashDifference();
-        
+
         // Calcular cash_sales (ventas al contado en efectivo, excluyendo depósitos)
         $cash_sales = $this->total_cash_sales - $this->total_deposit_sales;
-        
+
         try {
             // Create new pending reconciliation
             $reconciliation = DailySalesReconciliation::create([
@@ -379,17 +379,17 @@ class CreateReconciliation extends Component
                     return null;
                 }
             }
-            
+
             // Re-throw other database errors
             throw $e;
         }
-        
+
         $this->current_reconciliation = $reconciliation;
         $this->reconciliation_created = true;
-        
+
         return $reconciliation;
     }
-    
+
     protected function resetData()
     {
         $this->sales = [];
@@ -418,10 +418,10 @@ class CreateReconciliation extends Component
         $this->type_price_id = null;
         $this->product_shortage_total = 0.0;
     }
-    
+
     protected function getPaymentMethodLabel($paymentMethod): string
     {
-        return match($paymentMethod) {
+        return match ($paymentMethod) {
             'cash' => 'Efectivo',
             'deposit' => 'Depósito',
             'card' => 'Tarjeta',
@@ -429,13 +429,13 @@ class CreateReconciliation extends Component
             default => 'Otro'
         };
     }
-    
+
     // Método para actualizar el efectivo recibido
     public function updateCashReceived($value)
     {
         $this->cash_received = floatval($value);
         $this->calculateCashDifference();
-        
+
         if ($this->current_reconciliation) {
             $this->current_reconciliation->update([
                 'total_cash_received' => $this->cash_received,
@@ -443,23 +443,23 @@ class CreateReconciliation extends Component
             ]);
         }
     }
-    
+
     // Método para calcular la diferencia de efectivo
     protected function calculateCashDifference()
     {
         // Restamos los gastos para reflejarlos en la diferencia de efectivo
         $this->cash_difference = ($this->cash_received - $this->total_cash_expected);
     }
-    
+
     protected function calculateDepositTotals()
     {
         // Calcular el total de depósitos realizados
         $this->deposits_made = collect($this->deposits)->sum('amount');
-        
+
         // Calcular la diferencia entre depósitos realizados y esperados
         $this->deposit_difference = $this->deposits_made - $this->total_deposit_expected;
     }
-    
+
     // Método para guardar el cuadre (llamado desde el botón)
     public function saveReconciliation()
     {
@@ -468,26 +468,26 @@ class CreateReconciliation extends Component
             session()->flash('error', 'Debe seleccionar un empleado para crear el cuadre');
             return;
         }
-        
+
         // Validar que se haya ingresado el efectivo recibido
         if ($this->cash_received <= 0) {
             session()->flash('error', 'Debe ingresar el efectivo recibido');
             return;
         }
-        
+
         if (!$this->current_reconciliation) {
             // Si no hay un cuadre inicializado, lo creamos primero
             $this->createPendingReconciliation();
         }
-        
+
         if ($this->current_reconciliation) {
             // Iniciar una transacción para asegurar que todas las operaciones se realicen de forma atómica
             DB::beginTransaction();
-            
+
             try {
                 // Calcular cash_sales (ventas en efectivo sin depósitos)
                 $cash_sales = $this->total_cash_sales - $this->total_deposit_sales;
-                
+
                 // Actualizar el estado del cuadre a COMPLETED
                 $this->current_reconciliation->update([
                     'status' => ReconciliationStatusEnum::COMPLETED,
@@ -509,28 +509,28 @@ class CreateReconciliation extends Component
                     'product_shortage_total' => $this->product_shortage_total,
                     'type_price_id' => $this->type_price_id,
                 ]);
-                
+
                 // Recargar el cuadre para tener los datos actualizados
                 $this->current_reconciliation->refresh();
-                
+
                 // Confirmar la transacción
                 DB::commit();
-                
+
                 // Mostrar mensaje de éxito
                 session()->flash('success', 'Cuadre guardado correctamente');
-                
+
                 // Redireccionar a la lista de cuadres
                 $this->redirect(\App\Filament\Resources\DailySalesReconciliationResource::getUrl('index'));
             } catch (\Exception $e) {
                 // Si ocurre algún error, revertir la transacción
                 DB::rollBack();
-                
+
                 // Mostrar mensaje de error
                 session()->flash('error', 'Error al guardar el cuadre: ' . $e->getMessage());
             }
         }
     }
-    
+
     // Método para cargar los depósitos existentes
     protected function loadDeposits()
     {
@@ -546,7 +546,7 @@ class CreateReconciliation extends Component
                         'description' => "Déposito generado en venta",
                     ];
                 })->toArray();
-            
+
             // Actualizar el total de depósitos realizados y calcular la diferencia
             $this->calculateDepositTotals();
         } else {
@@ -555,7 +555,7 @@ class CreateReconciliation extends Component
             $this->deposit_difference = 0.0;
         }
     }
-    
+
     // Método para guardar un nuevo depósito
     public function saveDeposit()
     {
@@ -570,15 +570,15 @@ class CreateReconciliation extends Component
             'deposit_bank.required' => 'El banco es requerido',
             'deposit_reference.required' => 'La referencia es requerida',
         ]);
-        
+
         // Si no hay un cuadre inicializado, lo creamos primero
         if (!$this->current_reconciliation) {
             $this->createPendingReconciliation();
         }
-        
+
         // Iniciar una transacción para asegurar que todas las operaciones se realicen de forma atómica
         DB::beginTransaction();
-        
+
         try {
             // Crear el depósito asociado al cuadre actual
             Deposit::create([
@@ -588,78 +588,78 @@ class CreateReconciliation extends Component
                 'model_id' => $this->current_reconciliation->id,
                 'branch_id' => Auth::user()->employee?->branch_id ?? 1,
             ]);
-            
+
             // Actualizar el total de depósitos en el cuadre
             $total_deposits = Deposit::where('model_id', $this->current_reconciliation->id)->sum('amount');
             $this->deposits_made = $total_deposits;
             $this->deposit_difference = $this->deposits_made - $this->total_deposit_expected;
-            
+
             $this->current_reconciliation->update([
                 'total_deposits' => $total_deposits,
                 'deposit_difference' => $this->deposit_difference
             ]);
-            
+
             // Confirmar la transacción
             DB::commit();
-            
+
             // Limpiar los campos del formulario de depósito
             $this->resetDepositForm();
-            
+
             // Mostrar mensaje de éxito
             session()->flash('success', 'Depósito guardado correctamente');
         } catch (\Exception $e) {
             // Si ocurre algún error, revertir la transacción
             DB::rollBack();
-            
+
             // Mostrar mensaje de error
             session()->flash('error', 'Error al guardar el depósito: ' . $e->getMessage());
         }
-        
+
         // Recargar los depósitos
         $this->loadDeposits();
     }
-    
+
     // Método para eliminar un depósito
     public function deleteDeposit($depositId)
     {
         $deposit = Deposit::find($depositId);
-        
+
         if ($deposit && $deposit->model_id == $this->current_reconciliation->id) {
             // Iniciar una transacción para asegurar que todas las operaciones se realicen de forma atómica
             DB::beginTransaction();
-            
+
             try {
                 // Eliminar el depósito
                 $deposit->delete();
-                
+
                 // Actualizar el total de depósitos en el cuadre
                 $total_deposits = Deposit::where('model_id', $this->current_reconciliation->id)->sum('amount');
                 $this->deposits_made = $total_deposits;
                 $this->deposit_difference = $this->deposits_made - $this->total_deposit_expected;
-                
+
                 $this->current_reconciliation->update([
                     'total_deposits' => $total_deposits,
                     'deposit_difference' => $this->deposit_difference
                 ]);
-                
+
                 // Confirmar la transacción
                 DB::commit();
-                
+
                 // Mostrar mensaje de éxito
                 session()->flash('success', 'Depósito eliminado correctamente');
             } catch (\Exception $e) {
                 // Si ocurre algún error, revertir la transacción
                 DB::rollBack();
-                
+
                 // Mostrar mensaje de error
                 session()->flash('error', 'Error al eliminar el depósito: ' . $e->getMessage());
             }
-            
+
             // Recargar los depósitos
             $this->loadDeposits();
         }
     }
-    
+
     // Método para resetear el formulario de depósito
     protected function resetDepositForm()
     {
@@ -667,7 +667,7 @@ class CreateReconciliation extends Component
         $this->deposit_bank = null;
         $this->deposit_reference = null;
     }
-    
+
     // Método para guardar un gasto
     public function saveBill()
     {
@@ -681,15 +681,15 @@ class CreateReconciliation extends Component
             'bill_amount.numeric' => 'El monto debe ser un número',
             'bill_amount.min' => 'El monto debe ser mayor a 0',
         ]);
-        
+
         // Si no hay un cuadre inicializado, lo creamos primero
         if (!$this->current_reconciliation) {
             $this->createPendingReconciliation();
         }
-        
+
         // Iniciar una transacción para asegurar que todas las operaciones se realicen de forma atómica
         DB::beginTransaction();
-        
+
         try {
             // Crear el gasto asociado al cuadre actual
             Bill::create([
@@ -699,66 +699,66 @@ class CreateReconciliation extends Component
                 'model_id' => $this->current_reconciliation->id,
                 'branch_id' => Auth::user()->employee?->branch_id ?? 1,
             ]);
-            
+
             // Recalcular totales
             $this->calculateBillTotals();
             $this->calculateTotals();
-            
+
             // Confirmar la transacción
             DB::commit();
-            
+
             // Limpiar los campos del formulario de gasto
             $this->resetBillForm();
-            
+
             // Mostrar mensaje de éxito
             session()->flash('success', 'Gasto guardado correctamente');
         } catch (\Exception $e) {
             // Si ocurre algún error, revertir la transacción
             DB::rollBack();
-            
+
             // Mostrar mensaje de error
             session()->flash('error', 'Error al guardar el gasto: ' . $e->getMessage());
         }
-        
+
         // Recargar los gastos
         $this->loadBills();
     }
-    
+
     // Método para eliminar un gasto
     public function deleteBill($billId)
     {
         $bill = Bill::find($billId);
-        
+
         if ($bill && $bill->model_id == $this->current_reconciliation->id) {
             // Iniciar una transacción para asegurar que todas las operaciones se realicen de forma atómica
             DB::beginTransaction();
-            
+
             try {
                 // Eliminar el gasto
                 $bill->delete();
-                
+
                 // Recalcular totales
                 $this->calculateBillTotals();
                 $this->calculateTotals();
-                
+
                 // Confirmar la transacción
                 DB::commit();
-                
+
                 // Mostrar mensaje de éxito
                 session()->flash('success', 'Gasto eliminado correctamente');
             } catch (\Exception $e) {
                 // Si ocurre algún error, revertir la transacción
                 DB::rollBack();
-                
+
                 // Mostrar mensaje de error
                 session()->flash('error', 'Error al eliminar el gasto: ' . $e->getMessage());
             }
-            
+
             // Recargar los gastos
             $this->loadBills();
         }
     }
-    
+
     // Método para resetear el formulario de gasto
     protected function resetBillForm()
     {
@@ -766,7 +766,7 @@ class CreateReconciliation extends Component
         $this->bill_amount = 0.0;
         $this->bill_reference = null;
     }
-    
+
     // Método para calcular el total de gastos
     protected function calculateBillTotals()
     {
@@ -776,7 +776,7 @@ class CreateReconciliation extends Component
             $this->total_bills = 0.0;
         }
     }
-    
+
     // Método para cargar los gastos del cuadre actual
     protected function loadBills()
     {
@@ -796,7 +796,7 @@ class CreateReconciliation extends Component
         } else {
             $this->bills = [];
         }
-        
+
         $this->calculateBillTotals();
     }
 
@@ -826,22 +826,6 @@ class CreateReconciliation extends Component
             $this->returns = [];
             return;
         }
-
-        $this->returns = ProductReturn::with('product')
-            ->where('employee_id', $this->employee_id)
-            ->whereDate('created_at', $this->reconciliation_date)
-            ->get()
-            ->map(function ($return) {
-                return [
-                    'id' => $return->id,
-                    'product_name' => $return->product->name,
-                    'quantity' => $return->quantity,
-                    'type' => $return->type->getLabel(),
-                    'reason' => $return->reason,
-                    'affects_inventory' => $return->affects_inventory ? 'Sí' : 'No',
-                    'created_at' => $return->created_at->format('H:i:s'),
-                ];
-            })->toArray();
     }
 
     public function loadMovements(): void
@@ -861,8 +845,8 @@ class CreateReconciliation extends Component
         }
 
         $this->movements = AssignedProductMovement::whereHas('detailAssignedProduct', function ($query) use ($assignedProduct) {
-                $query->where('assigned_products_id', $assignedProduct->id);
-            })
+            $query->where('assigned_products_id', $assignedProduct->id);
+        })
             ->with(['detailAssignedProduct.product', 'sale'])
             ->get()
             ->map(function ($movement) {
@@ -979,11 +963,11 @@ class CreateReconciliation extends Component
         try {
             DB::transaction(function () use ($returnId) {
                 $productReturn = ProductReturn::findOrFail($returnId);
-                
+
                 // Revertir el movimiento de inventario antes de eliminar
                 $returnService = new ProductReturnService();
                 $returnService->reverseInventoryMovement($productReturn);
-                
+
                 // Eliminar la devolución
                 $productReturn->delete();
             });
@@ -1004,12 +988,12 @@ class CreateReconciliation extends Component
         $this->return_affects_inventory = true;
         $this->resetProductSearch();
     }
-    
+
     public function resetProductSearch(): void
     {
         $this->product_search = '';
     }
-    
+
     public $show_product_dropdown = false;
     public $filtered_products = [];
     public $selected_product = null;
@@ -1066,7 +1050,7 @@ class CreateReconciliation extends Component
         try {
             DB::transaction(function () use ($detailId, $returnedQuantity) {
                 $detail = DetailAssignedProduct::find($detailId);
-                
+
                 if (!$detail) {
                     throw new \Exception('Producto no encontrado.');
                 }
@@ -1087,7 +1071,7 @@ class CreateReconciliation extends Component
                     $this->createPendingReconciliation();
                 }
 
-                 // Actualizar la cantidad retornada en el detalle
+                // Actualizar la cantidad retornada en el detalle
                 $detail->update(['returned_quantity' => $returnedQuantity]);
 
                 // Crear registro de devolución con la cantidad especificada
@@ -1170,14 +1154,14 @@ class CreateReconciliation extends Component
             // Registrar el movimiento de inventario
             $returnService = new ProductReturnService();
             $returnService->registerInventoryMovement($productReturn);
-            
+
             Log::info('Devolución registrada', [
                 'product_return_id' => $productReturn->id,
                 'product_id' => $detail->product_id,
                 'quantity' => $quantity,
                 'employee_id' => $this->employee_id
             ]);
-            
+
         } catch (\Exception $e) {
             Log::error('Error al registrar devolución', [
                 'product_id' => $detail->product_id,
