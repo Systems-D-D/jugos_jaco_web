@@ -67,6 +67,20 @@ class DetailsRelationManager extends RelationManager
             ->headerActions([
                 Tables\Actions\CreateAction::make()
                     ->before(function (array $data) {
+                        $existing = DetailAssignedProduct::where([
+                            'assigned_products_id' => $this->getOwnerRecord()->id,
+                            'product_id' => $data['product_id'],
+                        ])->first();
+
+                        if ($existing) {
+                            FilamentNotification::error(
+                                'El producto ya está asignado en esta asignación. Edite la cantidad existente en lugar de duplicarlo.'
+                            );
+                            throw ValidationException::withMessages([
+                                'product_id' => 'Este producto ya está asignado en la asignación actual.',
+                            ]);
+                        }
+
                         // Verificar si hay suficiente stock antes de crear
                         $inventory = FinishedProductInventory::where([
                             'product_id' => $data['product_id'],
