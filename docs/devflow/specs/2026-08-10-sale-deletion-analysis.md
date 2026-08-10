@@ -571,7 +571,7 @@ implementación.
 | 1 | **R7 web:** fecha de venta a sólo lectura en el blade + `sale_date = now()` forzado en el servidor (§7.0) | — | ✅ hecho |
 | 2 | `Sale::scopeNotCancelled` + filtrarlo en cuadre, `getSales`, ranking y reportes (§7.1). Scope equivalente para CxC canceladas (§7.2) | — | ✅ hecho |
 | 3 | Migraciones §10: `management_inventory.reference_type` (**bloqueante**), `sales.branch_id`, `cancelled_at`/`cancelled_by`/`cancellation_reason`, `channel`, `payment_reference` + backfill | — | ✅ hecho |
-| 4 | `SaleCancellationService`: precondiciones (§7), reversión app (§4) y web (§5), CxC a `CANCELLED` (§7.2), transacción y bloqueos (§8) | fase 3 | pendiente |
+| 4 | `SaleCancellationService`: precondiciones (§7), reversión app (§4) y web (§5), CxC a `CANCELLED` (§7.2), transacción y bloqueos (§8) | fase 3 | ✅ hecho |
 | 5 | Acción "Anular" en Filament con motivo obligatorio y aviso de devolución del abono (R6) | fase 4 | pendiente |
 | 6 | `DELETE /api/sales/{id}` con pertenencia (§9), idempotencia (§8) y aviso de devolución (R6) | fase 4 | pendiente |
 | 7 | `SET NULL` → `restrictOnDelete` en `account_receivables.sales_id` y `assigned_product_movements.sale_id` (§10.6) | fase 4 | pendiente |
@@ -629,6 +629,51 @@ uno que fuerza una colisión real de `reference_id` entre una venta y una devolu
 el mismo id y verifica que `reference_type` las distingue) y
 `tests/Feature/SaleSchemaMetadataTest.php` (3 tests). Verificado en rojo contra la BD real
 (`jaco`) antes del fix: 3/4 y 3/3 tests fallaban respectivamente.
+
+La fase 4 también está hecha: `app/Services/SaleCancellationService.php` (nuevo) +
+`app/Exceptions/SaleCancellationException.php`.
+
+- **`cancel(Sale $sale, ?string $reason = null): Sale`** — única entrada pública. Bloquea
+  la venta (`lockForUpdate`), corta temprano si ya está `CANCELLED` (idempotencia, §8),
+  valida precondiciones en el orden del §7 (facturada → R1/R7 → R2 → R5), revierte
+  efectos y marca `CANCELLED` con `cancelled_at`/`cancelled_by`/`cancellation_reason`.
+  Todo en una única transacción.
+- **Reversión por evidencia, no por `channel`** (tal como pide §6): se consultan los
+  asientos de `management_inventory` con `reference_type = Sale::class` para esta venta.
+  Las líneas de la venta cuyo `product_id` aparece ahí se tratan como evidencia web
+  (se compensan con `DEVOLUCION`, R8, sin borrar el `SALIDA` original); el resto se trata
+  como evidencia app (se revierte `sale_quantity` contra la `DetailAssignedProduct`
+  resuelta por `sale.employee_id` + `sale.sale_date` — nunca por el usuario autenticado,
+  §4.1). Los movimientos de regalía/cambio se revierten siempre, sin depender de esta
+  clasificación: el vínculo es directo por `assigned_product_movements.sale_id`.
+- **Silent skip prohibido (§4.2):** si una línea no tiene evidencia (ni inventario ni
+  asignación), se aborta toda la anulación con un mensaje que nombra el producto, en vez
+  de revertir parcialmente.
+- **Piso en 0 con warning (§4.5)** al revertir `sale_quantity`, más una aserción
+  defensiva del invariante `stock ≥ 0` tras la reversión — si falla, indica drift previo
+  ajeno a esta venta y aborta la transacción completa.
+- **R4:** la cuenta por cobrar se marca `CANCELLED` + `cancelled_at`, nunca se borra.
+- **Autorización (§9) queda fuera de esta fase a propósito**, tal como delimita la tabla
+  del plan: el servicio no valida pertenencia ni rol, sólo las precondiciones técnicas.
+  Eso corresponde a las fases 5 (Filament) y 6 (API), siguiendo el mismo patrón usado en
+  `AssignedProductMovementController::resolveOwnedDetail` del PR #128 — ownership
+  verificado en el controlador, no en el servicio.
+
+Cubierto por `tests/Feature/SaleCancellationServiceTest.php` (21 tests: 8 caso app, 3
+caso web, 8 precondiciones R1-R6 + factura, 2 idempotencia). Dos hallazgos al escribir
+los tests, ambos corregidos en el propio test antes de dar la fase por cerrada:
+
+1. El escenario original para forzar el fallo del invariante defensivo no lo activaba:
+   restar `sale_quantity` sólo puede subir el `stock` calculado, nunca bajarlo, así que
+   hacía falta que **otro** acumulador (`returned_quantity`) ya excediera `quantity` por
+   sí solo para que la reversión terminara en negativo.
+2. El primer test de idempotencia pasaba incluso sin el guardia `isCancelled()`, porque
+   la reversión de `sale_quantity` es naturalmente resiliente a un doble-revert (el piso
+   en 0 lo absorbe) y la de regalías es query-driven (no vuelve a intentar nada si la fila
+   ya no existe). El guardia sí es indispensable para el **caso web**: sin él, un segundo
+   `cancel()` vuelve a leer los mismos asientos `SALIDA` (no se marcan como compensados) y
+   duplica el stock devuelto. Se agregó un test específico para ese escenario y se
+   verificó en rojo: sin el guardia, el stock queda en 105 en vez de 100.
 
 ---
 
