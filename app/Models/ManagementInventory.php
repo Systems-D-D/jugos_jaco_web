@@ -19,6 +19,7 @@ class ManagementInventory extends Model
         'model_type',
         'model_id',
         'reference_id',
+        'reference_type',
         'created_by'
     ];
 

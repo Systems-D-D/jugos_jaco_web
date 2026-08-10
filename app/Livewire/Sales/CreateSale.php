@@ -524,6 +524,7 @@ class CreateSale extends Component
                         \App\Enums\TypeInventoryManagementEnum::SALIDA->value,
                         'Venta de producto: ' . $item['name'],
                         $sale->id,
+                        Sale::class,
                     );
                 }
             }

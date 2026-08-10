@@ -570,7 +570,7 @@ implementación.
 | 0 | Retirar `DeleteAction`/`DeleteBulkAction` de Filament (hoy sólo producen un error SQL) | — | ✅ hecho (rama `feature/sale-cancellation`) |
 | 1 | **R7 web:** fecha de venta a sólo lectura en el blade + `sale_date = now()` forzado en el servidor (§7.0) | — | ✅ hecho |
 | 2 | `Sale::scopeNotCancelled` + filtrarlo en cuadre, `getSales`, ranking y reportes (§7.1). Scope equivalente para CxC canceladas (§7.2) | — | ✅ hecho |
-| 3 | Migraciones §10: `management_inventory.reference_type` (**bloqueante**), `sales.branch_id`, `cancelled_at`/`cancelled_by`/`cancellation_reason`, `channel`, `payment_reference` + backfill | — | pendiente |
+| 3 | Migraciones §10: `management_inventory.reference_type` (**bloqueante**), `sales.branch_id`, `cancelled_at`/`cancelled_by`/`cancellation_reason`, `channel`, `payment_reference` + backfill | — | ✅ hecho |
 | 4 | `SaleCancellationService`: precondiciones (§7), reversión app (§4) y web (§5), CxC a `CANCELLED` (§7.2), transacción y bloqueos (§8) | fase 3 | pendiente |
 | 5 | Acción "Anular" en Filament con motivo obligatorio y aviso de devolución del abono (R6) | fase 4 | pendiente |
 | 6 | `DELETE /api/sales/{id}` con pertenencia (§9), idempotencia (§8) y aviso de devolución (R6) | fase 4 | pendiente |
@@ -595,6 +595,40 @@ Cubierto por `tests/Feature/SaleCancellationScaffoldingTest.php` (7 tests): los 
 scopes, su aplicación en el endpoint de ventas del día, en el cuadre y en el listado de
 CxC del empleado, la fecha forzada en servidor pese a un valor manipulado del cliente, y
 la ausencia de `DeleteAction` en la edición de venta.
+
+La fase 3 también está hecha:
+
+- **`management_inventory.reference_type`** (nullable, `after reference_id`) — backfill
+  histórico por patrón de descripción (única señal disponible; no hay ninguna otra forma
+  de reconstruir el origen retroactivamente): 621 filas → `AssignedProduct::class`, 30 →
+  `ProductReturn::class`, 1.390 sin clasificar (asientos legacy con `reference_id` ya
+  NULL — no había nada que resolver). `ManagementInventoryService::processMovement` y
+  los 4 métodos `register*` ahora aceptan `?string $referenceType` y lo persisten; se
+  actualizaron los 4 call sites existentes (`SaleService`, `CreateSale` web,
+  `ProductReturnService` ×2, `DetailsRelationManager` ×3) para pasar la clase
+  correspondiente. `MovementsInventoryRelationManager` (ajuste manual) sigue sin
+  referencia, como antes.
+- **`sales.branch_id`, `payment_reference`** — ya se enviaban a `Sale::create()` pero
+  Eloquent los descartaba en silencio por no existir. Backfill de `branch_id` desde
+  `employees.branch_id` (426/426 resueltas). El backfill se implementó recorriendo por
+  empleado en vez de `UPDATE...JOIN`: esa sintaxis no es portable a SQLite, que es el
+  motor de la suite de tests.
+- **`sales.cancelled_at`, `cancelled_by`, `cancellation_reason`** — columnas de
+  auditoría, sin backfill (no hay ventas anuladas todavía). Relación `cancelledBy()`
+  agregada al modelo.
+- **`sales.channel`** (`SaleChannelEnum::APP|WEB`) — backfill por evidencia: existe
+  `AssignedProduct` para `(employee_id, sale_date)` ⇒ `app`, si no ⇒ `web`. Resultado
+  real: las 426 ventas históricas clasificaron como `app` (consistente con que no hay
+  ningún asiento de inventario con `reference_type = Sale::class` en el histórico: nunca
+  hubo una venta web con movimiento de inventario en esta base). El enum deja escrito en
+  su docblock que la reversión de la fase 4 no debe decidir por este campo, sino por
+  evidencia directa — igual criterio que el backfill.
+
+Cubierto por `tests/Feature/ManagementInventoryReferenceTypeTest.php` (4 tests, incluido
+uno que fuerza una colisión real de `reference_id` entre una venta y una devolución con
+el mismo id y verifica que `reference_type` las distingue) y
+`tests/Feature/SaleSchemaMetadataTest.php` (3 tests). Verificado en rojo contra la BD real
+(`jaco`) antes del fix: 3/4 y 3/3 tests fallaban respectivamente.
 
 ---
 
