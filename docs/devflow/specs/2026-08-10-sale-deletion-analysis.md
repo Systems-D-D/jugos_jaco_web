@@ -1,7 +1,7 @@
 # Análisis: borrado / anulación de ventas
 
 **Fecha:** 2026-08-10
-**Estado:** análisis cerrado — reglas de negocio definidas (§0), sin decisiones pendientes (§11). Listo para implementar (§12).
+**Estado:** ✅ **implementación completa** — fases 0-7 hechas, en la rama `feature/sale-cancellation`.
 **Relacionado:** `docs/devflow/bug-fixes/2026-08-10-assigned-product-movements-known-issues.md` (Pendiente B)
 
 ---
@@ -574,7 +574,7 @@ implementación.
 | 4 | `SaleCancellationService`: precondiciones (§7), reversión app (§4) y web (§5), CxC a `CANCELLED` (§7.2), transacción y bloqueos (§8) | fase 3 | ✅ hecho |
 | 5 | Acción "Anular" en Filament con motivo obligatorio y aviso de devolución del abono (R6) | fase 4 | ✅ hecho |
 | 6 | `DELETE /api/sales/{id}` con pertenencia (§9), idempotencia (§8) y aviso de devolución (R6) | fase 4 | ✅ hecho |
-| 7 | `SET NULL` → `restrictOnDelete` en `account_receivables.sales_id` y `assigned_product_movements.sale_id` (§10.6) | fase 4 | pendiente |
+| 7 | `SET NULL` → `restrictOnDelete` en `account_receivables.sales_id` y `assigned_product_movements.sale_id` (§10.6) | fase 4 | ✅ hecho |
 
 Las fases 0, 1 y 2 eran independientes entre sí y de todo lo demás, y ya están hechas:
 
@@ -760,6 +760,41 @@ motivo, 404, 403, idempotencia HTTP (dos `DELETE` seguidos, ambos 200), dos
 precondiciones mapeadas a 422 con el mensaje exacto del servicio, y R6 presente/ausente
 según corresponda. Verificado en rojo desactivando quirúrgicamente el check de
 pertenencia y el cálculo de `cash_to_return`.
+
+La fase 7 también está hecha — última del plan: dos migraciones puramente de esquema,
+sin lógica de aplicación.
+
+- `2026_08_12_000001_...`: `account_receivables.sales_id` pasa de `nullOnDelete()` a
+  `restrictOnDelete()`.
+- `2026_08_12_000002_...`: `assigned_product_movements.sale_id`, mismo cambio.
+- **No hay backfill ni migración de datos**: es sólo cambiar la regla `ON DELETE` de la
+  FK (`dropForeign` + `foreign(...)->restrictOnDelete()`), no toca filas existentes.
+- Verificado contra la BD real (`jaco`): antes del cambio, ambas eran `SET NULL`; después,
+  `RESTRICT` — confirmado consultando `information_schema.REFERENTIAL_CONSTRAINTS`. El
+  `down()` de ambas migraciones se probó explícitamente (rollback + re-migrate) y
+  restaura `SET NULL` correctamente.
+- **No cambia nada en el comportamiento de la aplicación**: como ninguna venta se borra
+  físicamente desde el código (fase 0 retiró los últimos botones que lo intentaban, y
+  `SaleCancellationService` sólo hace `UPDATE` sobre `sales`, nunca `DELETE`), el único
+  efecto de este cambio es que un intento de borrado físico futuro —manual, por script, o
+  por una regresión que reintroduzca un botón de borrar— falla ahora con un error de base
+  de datos explícito, en vez de dejar una CxC o una regalía huérfana en silencio. Es
+  puramente defensivo.
+- El borrado de la fila *hija* (un `assigned_product_movement` individual, como hace
+  `AssignedProductMovementService::deleteMovement` durante una anulación normal) **sigue
+  funcionando exactamente igual**: `RESTRICT` sólo gobierna qué pasa al borrar el padre
+  (`sales`), nunca al borrar el hijo.
+
+Cubierto por `tests/Feature/SaleForeignKeyRestrictTest.php` (4 tests): bloqueo del borrado
+de una venta con CxC asociada, bloqueo del borrado de una venta con un movimiento de
+regalía asociado, borrado de un movimiento individual sin afectarse por la restricción, y
+una anulación completa (con CxC y regalía) verificando que `SaleCancellationService` sigue
+funcionando sin fricción bajo el nuevo esquema. Verificado en rojo editando temporalmente
+el contenido de ambas migraciones (revertidas a `nullOnDelete()`) y confirmando que los
+dos tests de bloqueo fallan sin `RESTRICT` — el archivo de test corre contra SQLite en
+memoria, migrado desde cero en cada corrida, así que la verificación tuvo que tocar el
+archivo de migración directamente en vez de usar `migrate:rollback` sobre la BD de
+desarrollo (que no comparte estado con la base de tests).
 
 ---
 
