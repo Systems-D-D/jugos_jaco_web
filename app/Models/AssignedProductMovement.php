@@ -14,6 +14,7 @@ class AssignedProductMovement extends Model
         'quantity',
         'note',
         'sale_id',
+        'client_request_uuid',
         'created_by',
     ];
 

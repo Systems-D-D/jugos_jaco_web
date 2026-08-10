@@ -6,6 +6,7 @@ use App\Enums\SaleStatusEnum;
 use App\Enums\TypeInventoryManagementEnum;
 use App\Enums\PaymentTypeEnum;
 use App\Enums\PaymentTermEnum;
+use App\Exceptions\InsufficientAssignedStockException;
 use App\Models\AssignedProduct;
 use App\Models\DetailAssignedProduct;
 use App\Models\FinishedProductInventory;
@@ -132,6 +133,13 @@ class SaleService
             Log::error('Error DB en SaleService::createSale: ' . $qe->getMessage());
             throw $qe;
 
+        } catch (InsufficientAssignedStockException $e) {
+            // Se propaga sin envolver para que el controlador la traduzca a 422:
+            // reintentar no la resuelve.
+            DB::rollBack();
+            Log::warning('Stock insuficiente en SaleService::createSale: ' . $e->getMessage());
+            throw $e;
+
         } catch (Exception $e) {
             DB::rollBack();
             Log::error('Error en SaleService::createSale: ' . $e->getMessage());
@@ -148,13 +156,22 @@ class SaleService
      */
     protected function createSaleDetails(Sale $sale, array $productsData): void
     {
-        foreach ($productsData as $productData) {
-            // --- CASE: Royalty or Change → AssignedProductMovement ---
-            if (!empty($productData['movement_type'])) {
-                $this->createMovementFromSaleProduct($sale, $productData);
-                continue;
-            }
+        // El resultado no debe depender del orden en que el cliente arme el payload:
+        // las líneas de venta se procesan siempre primero y los movimientos
+        // (regalías/cambios) después, de modo que el control de stock de cada
+        // movimiento ya vea descontado lo vendido en este mismo ticket.
+        $saleLines = [];
+        $movementLines = [];
 
+        foreach ($productsData as $productData) {
+            if (!empty($productData['movement_type'])) {
+                $movementLines[] = $productData;
+            } else {
+                $saleLines[] = $productData;
+            }
+        }
+
+        foreach ($saleLines as $productData) {
             if (isset($productData['origin']) && $productData['origin'] === 'api') {
                 $productosAsignados = AssignedProduct::where('employee_id', Auth::user()->employee->id)
                     ->todayAssignments()
@@ -167,16 +184,19 @@ class SaleService
                         ->first();
 
                     if ($detail) {
-                        $nSaleQuantity = ($detail->sale_quantity ?? 0) + $productData['quantity'];
+                        // El sobrante disponible descuenta también regalías, cambios y
+                        // devoluciones: vender contra `quantity` permitía vender unidades
+                        // que ya habían salido como movimiento y dejaba el stock negativo.
+                        $available = (float) $detail->stock;
 
-                        if ($detail->quantity < $nSaleQuantity) {
-                            throw new Exception(
-                                "La cantidad a vender del producto {$productData['name']} excede la cantidad asignada"
+                        if ($available < $productData['quantity']) {
+                            throw new InsufficientAssignedStockException(
+                                "La cantidad a vender del producto {$productData['name']} excede el sobrante disponible ({$available})"
                             );
                         }
 
                         $detail->update([
-                            'sale_quantity' => $nSaleQuantity,
+                            'sale_quantity' => ($detail->sale_quantity ?? 0) + $productData['quantity'],
                         ]);
                     }
                 }
@@ -225,6 +245,11 @@ class SaleService
                     );
                 }
             }
+        }
+
+        // --- CASE: Royalty or Change → AssignedProductMovement ---
+        foreach ($movementLines as $productData) {
+            $this->createMovementFromSaleProduct($sale, $productData);
         }
     }
 
