@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Exceptions\InsufficientAssignedStockException;
 use App\Http\Requests\SaleRequest;
 use App\Http\Resources\SaleDetailResource;
 use App\Http\Resources\SaleResource;
@@ -97,6 +98,9 @@ class SaleController extends Controller
                 );
             }
             return $this->errorResponse($qe, 500, "Error al crear la venta");
+
+        } catch (InsufficientAssignedStockException $e) {
+            return $this->errorResponse($e, 422, $e->getMessage());
 
         } catch (Exception $e) {
             return $this->errorResponse(

@@ -21,7 +21,7 @@ class DetailAssignedProduct extends Model
         'assigned_products_id',
     ];
 
-    protected $cast = [
+    protected $casts = [
         'quantity' => 'decimal:2',
         'sale_quantity' => 'decimal:2',
         'returned_quantity' => 'decimal:2',
