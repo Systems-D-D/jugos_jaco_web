@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\SaleResource\Pages;
 
 use App\Filament\Resources\SaleResource;
+use App\Models\Sale;
 use Filament\Actions;
 use Filament\Infolists\Components\Group;
 use Filament\Infolists\Components\Section;
@@ -20,7 +21,22 @@ class ViewSale extends ViewRecord
 
     protected function getHeaderActions(): array
     {
-        return [];
+        return [
+            Actions\Action::make('cancel')
+                ->label('Anular')
+                ->icon('heroicon-o-x-circle')
+                ->color('danger')
+                ->modalHeading('Anular venta')
+                ->modalSubmitActionLabel('Anular venta')
+                ->form(fn () => SaleResource::cancelActionFormSchema())
+                ->visible(fn (Sale $record) => SaleResource::saleCanBeCancelledByCurrentUser($record))
+                ->action(function (Sale $record, array $data) {
+                    SaleResource::handleCancelAction($record, $data);
+                })
+                // Recarga completa: el infolist lee del $record cargado al
+                // montar la página, que no se actualiza solo tras la acción.
+                ->after(fn () => redirect(static::getResource()::getUrl('view', ['record' => $this->record]))),
+        ];
     }
 
     public function infolist(Infolist $infolist): Infolist
@@ -187,6 +203,24 @@ class ViewSale extends ViewRecord
                         ])
                         ->collapsible()
                         ->collapsed(),
+
+                    Section::make('Anulación')
+                        ->schema([
+                            Grid::make(2)
+                                ->schema([
+                                    TextEntry::make('cancelledBy.name')
+                                        ->label('Anulada por'),
+
+                                    TextEntry::make('cancelled_at')
+                                        ->label('Fecha de anulación')
+                                        ->dateTime('d/m/Y H:i'),
+
+                                    TextEntry::make('cancellation_reason')
+                                        ->label('Motivo')
+                                        ->columnSpanFull(),
+                                ])
+                        ])
+                        ->visible(fn (Sale $record) => $record->isCancelled()),
                 ])
             ]);
     }

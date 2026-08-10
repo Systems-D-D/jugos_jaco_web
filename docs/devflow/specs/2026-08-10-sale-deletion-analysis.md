@@ -572,7 +572,7 @@ implementación.
 | 2 | `Sale::scopeNotCancelled` + filtrarlo en cuadre, `getSales`, ranking y reportes (§7.1). Scope equivalente para CxC canceladas (§7.2) | — | ✅ hecho |
 | 3 | Migraciones §10: `management_inventory.reference_type` (**bloqueante**), `sales.branch_id`, `cancelled_at`/`cancelled_by`/`cancellation_reason`, `channel`, `payment_reference` + backfill | — | ✅ hecho |
 | 4 | `SaleCancellationService`: precondiciones (§7), reversión app (§4) y web (§5), CxC a `CANCELLED` (§7.2), transacción y bloqueos (§8) | fase 3 | ✅ hecho |
-| 5 | Acción "Anular" en Filament con motivo obligatorio y aviso de devolución del abono (R6) | fase 4 | pendiente |
+| 5 | Acción "Anular" en Filament con motivo obligatorio y aviso de devolución del abono (R6) | fase 4 | ✅ hecho |
 | 6 | `DELETE /api/sales/{id}` con pertenencia (§9), idempotencia (§8) y aviso de devolución (R6) | fase 4 | pendiente |
 | 7 | `SET NULL` → `restrictOnDelete` en `account_receivables.sales_id` y `assigned_product_movements.sale_id` (§10.6) | fase 4 | pendiente |
 
@@ -674,6 +674,60 @@ los tests, ambos corregidos en el propio test antes de dar la fase por cerrada:
    `cancel()` vuelve a leer los mismos asientos `SALIDA` (no se marcan como compensados) y
    duplica el stock devuelto. Se agregó un test específico para ese escenario y se
    verificó en rojo: sin el guardia, el stock queda en 105 en vez de 100.
+
+La fase 5 también está hecha: acción "Anular" en `app/Filament/Resources/SaleResource.php`
+(fila de la tabla) y en `.../Pages/ViewSale.php` (cabecera de la página de detalle), con
+la lógica compartida (visibilidad, formulario, manejo de errores) centralizada en tres
+métodos estáticos de `SaleResource` para no duplicarla entre ambos lugares —
+`Filament\Tables\Actions\Action` y `Filament\Actions\Action` no comparten jerarquía, así
+que cada página construye su propia instancia pero reutiliza la misma lógica.
+
+- **Formulario:** `Textarea` de motivo, `required()` — sin él la acción falla validación
+  y no llega a invocar el servicio. Un `Placeholder` condicional muestra el aviso de R6
+  ("Esta venta a crédito tiene un abono inicial de L X...") sólo cuando
+  `payment_term = CREDIT` y `cash_amount > 0`.
+- **Errores del servicio como notificación, no como excepción cruda:** el `action()`
+  atrapa `SaleCancellationException` y muestra `Notification::make()->danger()` con el
+  mensaje exacto del servicio (p. ej. "El día ya tiene cuadre..."). La venta queda
+  intacta porque la excepción se lanzó dentro de la transacción del servicio, que hizo
+  rollback antes de propagarla.
+- **Autorización (§9), implementada en el controlador/recurso, no en el servicio** (mismo
+  patrón que `AssignedProductMovementController::resolveOwnedDetail` del PR #128):
+  - venta ya `CANCELLED` o facturada → botón oculto directamente (evita una notificación
+    de rechazo para un caso que ya se sabe inválido de antemano).
+  - permiso `Sale.delete` (reutilizado — no se creó un permiso `Sale.cancel` nuevo:
+    semánticamente reemplaza al borrado físico retirado en la fase 0, y es exactamente el
+    mismo permiso que `DeleteAction`/`DeleteBulkAction` habrían resuelto automáticamente
+    antes de quitarlos, así que la postura de seguridad no cambia).
+  - superadmin/admin: cualquier venta del día.
+  - cajero: sólo `sale.created_by === $user->id` — **no** `employee_id`.
+  - R1/R2/R5 (mismo día, sin cuadre, sin pagos) no se replican en la visibilidad del
+    botón: dependen de estado que puede cambiar entre que se renderiza la fila y se hace
+    clic, así que el servicio las valida y se comunican por notificación.
+- **Hallazgo al implementar la autorización de cajero:** `CashierSaleScope`
+  (`app/Models/Scopes/CashierSaleScope.php`) está **importada en `Sale.php` pero nunca
+  registrada** (`static::addGlobalScope(...)` no existe en el modelo) — es código muerto,
+  a pesar de que este mismo documento (§9) asumía que ya filtraba por `created_by`. El
+  filtro real hoy es `ListSales::getTableQuery`, que filtra por `employee_id` (el
+  vendedor), no por `created_by` (quien creó el registro) — dos criterios distintos para
+  lo que debería ser el mismo control. La autorización de la acción "Anular" se
+  implementó correctamente usando `created_by` (el criterio que dicta este documento),
+  **independiente** de ese scope muerto — no se tocó `CashierSaleScope` ni
+  `ListSales::getTableQuery`, por ser una inconsistencia preexistente y más amplia que el
+  alcance de esta fase. Queda pendiente como deuda técnica a resolver aparte.
+- **UI de auditoría:** `ViewSale` gana una sección "Anulación" (`cancelledBy`,
+  `cancelled_at`, `cancellation_reason`), visible sólo si `isCancelled()`. La sección
+  "Información Adicional" ya mostraba `payment_reference` — ahora se popula de verdad
+  gracias al fix de esquema de la fase 3 (antes se descartaba en silencio).
+- La acción, tras ejecutarse desde `ViewSale`, redirige a la misma URL de vista: el
+  infolist lee del `$record` cargado al montar la página, que no se refresca solo tras la
+  acción (a diferencia de la tabla de Filament, que sí se re-renderiza automáticamente).
+
+Cubierto por `tests/Feature/SaleCancellationFilamentActionTest.php` (10 tests):
+autorización por rol/pertenencia/permiso/estado (5), motivo obligatorio, aviso de R6,
+notificación de error sin excepción cruda, y que la misma acción está disponible en la
+tabla. Verificado en rojo desactivando quirúrgicamente el check de pertenencia del
+cajero, el check de permiso y el `required()` del motivo, uno a la vez.
 
 ---
 
