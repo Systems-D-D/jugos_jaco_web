@@ -2,7 +2,9 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\PaymentTermEnum;
 use App\Exceptions\InsufficientAssignedStockException;
+use App\Exceptions\SaleCancellationException;
 use App\Http\Requests\SaleRequest;
 use App\Http\Resources\SaleDetailResource;
 use App\Http\Resources\SaleResource;
@@ -15,6 +17,7 @@ use App\Models\SaleDetail;
 use App\Services\AccountReceivableService;
 use App\Services\AssignedProductMovementService;
 use App\Services\ManagementInventoryService;
+use App\Services\SaleCancellationService;
 use App\Services\SaleService;
 use App\Traits\ApiResponse;
 use Carbon\Carbon;
@@ -28,6 +31,7 @@ class SaleController extends Controller
     use ApiResponse;
 
     private $saleService;
+    private $saleCancellationService;
 
     public function __construct()
     {
@@ -36,6 +40,11 @@ class SaleController extends Controller
             new AccountReceivableService(),
             new ClientVisitService(),
             new AssignedProductMovementService()
+        );
+
+        $this->saleCancellationService = new SaleCancellationService(
+            new AssignedProductMovementService(),
+            new ManagementInventoryService()
         );
     }
 
@@ -162,6 +171,76 @@ class SaleController extends Controller
                 $exc->getCode() ?: 500,
                 "Ocurrió un error al obtener el detalle de la venta"
             );
+        }
+    }
+
+    /**
+     * Anula una venta (app móvil). Sólo el vendedor dueño de la venta puede
+     * anularla, la misma restricción del vendedor en Filament (§9 del
+     * análisis) — el admin/cajero anulan desde el panel web, no por esta ruta.
+     *
+     * Idempotente: si la venta ya está anulada, responde 200 igual que una
+     * anulación exitosa (SaleCancellationService::cancel no lanza en ese
+     * caso), para que un reintento de la cola offline del móvil no se
+     * atasque con un error.
+     *
+     * @param int $id
+     * @return JsonResponse
+     */
+    public function cancelSale(Request $request, int $id): JsonResponse
+    {
+        // El motivo es opcional en este canal (a diferencia de Filament,
+        // donde es obligatorio para todos los roles): el vendedor suele
+        // anular al instante por un error de captura, sin fricción extra.
+        $request->validate([
+            'reason' => 'nullable|string|max:500',
+        ]);
+
+        try {
+            $sale = Sale::find($id);
+
+            if (!$sale) {
+                return $this->errorResponse(
+                    new Exception('Venta no encontrada.'),
+                    404,
+                    'Venta no encontrada.'
+                );
+            }
+
+            if ($sale->employee_id !== Auth::user()->employee_id) {
+                return $this->errorResponse(
+                    new Exception('La venta no pertenece al vendedor autenticado.'),
+                    403,
+                    'No autorizado para anular esta venta.'
+                );
+            }
+
+            $cancelled = $this->saleCancellationService->cancel($sale, $request->input('reason'));
+
+            // R6: aviso de devolución cuando la venta a crédito llevó abono
+            // inicial (no genera fila en payments, así que el chequeo de R5
+            // no lo detecta y la anulación sí procede).
+            $cashToReturn = null;
+            if ($cancelled->payment_term === PaymentTermEnum::CREDIT && (float) $cancelled->cash_amount > 0) {
+                $cashToReturn = (float) $cancelled->cash_amount;
+            }
+
+            $message = "Venta #INV-{$cancelled->id} anulada correctamente.";
+            if ($cashToReturn !== null) {
+                $message .= sprintf(' Recuerde devolver L %s al cliente.', number_format($cashToReturn, 2));
+            }
+
+            return $this->successResponse([
+                'id' => $cancelled->id,
+                'status' => $cancelled->status->value,
+                'cash_to_return' => $cashToReturn,
+            ], $message);
+
+        } catch (SaleCancellationException $e) {
+            return $this->errorResponse($e, $e->getCode() ?: 422, $e->getMessage());
+
+        } catch (Exception $e) {
+            return $this->errorResponse($e, 500, 'Error al anular la venta.');
         }
     }
 

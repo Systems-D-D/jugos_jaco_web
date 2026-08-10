@@ -573,7 +573,7 @@ implementación.
 | 3 | Migraciones §10: `management_inventory.reference_type` (**bloqueante**), `sales.branch_id`, `cancelled_at`/`cancelled_by`/`cancellation_reason`, `channel`, `payment_reference` + backfill | — | ✅ hecho |
 | 4 | `SaleCancellationService`: precondiciones (§7), reversión app (§4) y web (§5), CxC a `CANCELLED` (§7.2), transacción y bloqueos (§8) | fase 3 | ✅ hecho |
 | 5 | Acción "Anular" en Filament con motivo obligatorio y aviso de devolución del abono (R6) | fase 4 | ✅ hecho |
-| 6 | `DELETE /api/sales/{id}` con pertenencia (§9), idempotencia (§8) y aviso de devolución (R6) | fase 4 | pendiente |
+| 6 | `DELETE /api/sales/{id}` con pertenencia (§9), idempotencia (§8) y aviso de devolución (R6) | fase 4 | ✅ hecho |
 | 7 | `SET NULL` → `restrictOnDelete` en `account_receivables.sales_id` y `assigned_product_movements.sale_id` (§10.6) | fase 4 | pendiente |
 
 Las fases 0, 1 y 2 eran independientes entre sí y de todo lo demás, y ya están hechas:
@@ -728,6 +728,38 @@ autorización por rol/pertenencia/permiso/estado (5), motivo obligatorio, aviso 
 notificación de error sin excepción cruda, y que la misma acción está disponible en la
 tabla. Verificado en rojo desactivando quirúrgicamente el check de pertenencia del
 cajero, el check de permiso y el `required()` del motivo, uno a la vez.
+
+La fase 6 también está hecha: `DELETE /api/sales/{id}` →
+`SaleController::cancelSale` (app móvil).
+
+- **Pertenencia (§9):** sólo si `sale.employee_id === Auth::user()->employee_id`. A
+  diferencia de Filament, aquí no hay concepto de admin/cajero — esta ruta es
+  exclusivamente del vendedor sobre sus propias ventas. 404 si la venta no existe, 403
+  si existe pero es de otro vendedor (misma distinción que
+  `AssignedProductMovementController::resolveOwnedDetail` del PR #128).
+- **Idempotencia HTTP (§8):** un segundo `DELETE` sobre una venta ya anulada responde
+  **200**, no 404/409/422 — el servicio ya es idempotente (no lanza si
+  `isCancelled()`), el controlador no necesita lógica extra: el mismo camino de éxito
+  cubre "se acaba de anular" y "ya estaba anulada". Así la cola offline del móvil no se
+  atasca con un reintento.
+- **Motivo opcional en este canal** (a diferencia de Filament, donde es obligatorio para
+  todos los roles): `nullable|string|max:500`. El vendedor suele anular al instante por
+  un error de captura; exigir motivo ahí es fricción que el análisis no pedía para esta
+  ruta específicamente.
+- **R6 en la respuesta:** si la venta es a crédito con `cash_amount > 0`, la respuesta
+  incluye `data.cash_to_return` (monto) y el mensaje de éxito indica explícitamente
+  "Recuerde devolver L X al cliente." — igual que el aviso de Filament, pero en el canal
+  que de verdad usa el vendedor al momento de anular desde el celular.
+- **Errores del servicio (`SaleCancellationException`) se mapean 1:1** al código HTTP que
+  el propio servicio ya decidió (`$e->getCode()`: 409 factura, 422 R1/R2/R5, 500
+  defensivo), con el mensaje exacto en el campo `error` de la respuesta — el móvil puede
+  mostrarlo directo, sin tener que interpretar un mensaje genérico.
+
+Cubierto por `tests/Feature/SaleCancellationApiTest.php` (10 tests): éxito con y sin
+motivo, 404, 403, idempotencia HTTP (dos `DELETE` seguidos, ambos 200), dos
+precondiciones mapeadas a 422 con el mensaje exacto del servicio, y R6 presente/ausente
+según corresponda. Verificado en rojo desactivando quirúrgicamente el check de
+pertenencia y el cálculo de `cash_to_return`.
 
 ---
 
