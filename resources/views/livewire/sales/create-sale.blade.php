@@ -93,17 +93,14 @@
                                     @enderror
                                 </div>
 
-                                <!-- Fecha -->
+                                <!-- Fecha: sólo lectura, la fija el servidor al guardar (no editable) -->
                                 <div>
                                     <label for="sale_date"
                                         class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                                        Fecha <span class="text-red-500">*</span>
+                                        Fecha
                                     </label>
-                                    <input type="date" wire:model="sale_date" id="sale_date" required
-                                        class="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
-                                    @error('sale_date')
-                                        <span class="text-red-500 text-xs">{{ $message }}</span>
-                                    @enderror
+                                    <input type="date" wire:model="sale_date" id="sale_date" readonly disabled
+                                        class="w-full rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300 shadow-sm bg-gray-100 dark:bg-gray-800 cursor-not-allowed">
                                 </div>
                             </div>
 

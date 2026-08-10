@@ -10,6 +10,7 @@ use App\Models\Sale;
 use App\Models\AccountReceivable;
 use App\Models\FinishedProductInventory;
 use App\Models\RawMaterialsInventory;
+use App\Enums\SaleStatusEnum;
 use App\Enums\UserRole;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -45,7 +46,8 @@ class StatsOverview extends BaseWidget
             ->count();
 
         // Ventas del mes actual
-        $currentMonthSales = Sale::whereMonth('sale_date', now()->month)
+        $currentMonthSales = Sale::notCancelled()
+            ->whereMonth('sale_date', now()->month)
             ->whereYear('sale_date', now()->year)
             ->sum('total_amount');
 
@@ -55,10 +57,14 @@ class StatsOverview extends BaseWidget
             ->sum('remaining_balance');
 
         // Empleado destacado del mes
+        // whereMonth/whereYear sobre sales.sale_date ya excluyen las filas NULL del
+        // left join (empleados sin ventas), así que un where plano sobre status
+        // es seguro aquí: no hay riesgo de perder empleados por NULL != 'cancelled'.
         $topEmployee = Employee::select('employees.first_name', 'employees.last_name')
             ->leftJoin('sales', 'employees.id', '=', 'sales.employee_id')
             ->whereMonth('sales.sale_date', now()->month)
             ->whereYear('sales.sale_date', now()->year)
+            ->where('sales.status', '!=', SaleStatusEnum::CANCELLED->value)
             ->groupBy('employees.id', 'employees.first_name', 'employees.last_name')
             ->orderBy(DB::raw('SUM(sales.total_amount)'), 'desc')
             ->first();

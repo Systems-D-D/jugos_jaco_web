@@ -118,12 +118,9 @@ class SaleResource extends Resource
             ])
             ->actions([
                 Tables\Actions\ViewAction::make(),
-            ])
-            ->bulkActions([
-                Tables\Actions\BulkActionGroup::make([
-                    Tables\Actions\DeleteBulkAction::make()
-                ]),
             ]);
+            // DeleteBulkAction retirado: una venta nunca se borra físicamente, se
+            // anula (ver docs/devflow/specs/2026-08-10-sale-deletion-analysis.md).
     }
 
     public static function getRelations(): array

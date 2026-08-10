@@ -37,6 +37,7 @@ class AccountReceivableController extends Controller
     {
         try {
             $accountReceivable = AccountReceivable::byEmployee(Auth::user()->employee_id)
+                ->notCancelled()
                 ->where(function($query) {
                     $query->whereNull('paid_at')
                         ->orWhere(function($sub) {
@@ -129,6 +130,7 @@ class AccountReceivableController extends Controller
             $date = $request->query('date', Carbon::now()->toDateString());
 
             $accountsWithPayments = AccountReceivable::byEmployee(Auth::user()->employee_id)
+                ->notCancelled()
                 ->with(['payments' => function($query) use ($date) {
                     $query->whereDate('payment_date', $date);
                 }])

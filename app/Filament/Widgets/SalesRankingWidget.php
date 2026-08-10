@@ -2,6 +2,7 @@
 
 namespace App\Filament\Widgets;
 
+use App\Enums\SaleStatusEnum;
 use App\Models\Employee;
 use App\Models\Sale;
 use Filament\Tables;
@@ -46,7 +47,17 @@ class SalesRankingWidget extends BaseWidget
                         DB::raw('COALESCE(SUM(CASE WHEN sales.payment_method = "cash" THEN sales.total_amount ELSE 0 END), 0) as cash_sales'),
                         DB::raw('COALESCE(SUM(CASE WHEN sales.payment_method = "deposit" THEN sales.total_amount ELSE 0 END), 0) as deposit_sales'),
                     ])
-                    ->leftJoin('sales', 'employees.id', '=', 'sales.employee_id')
+                    // Ventas anuladas fuera del ranking. Se filtra dentro del ON (no en
+                    // un WHERE posterior) para no perder los empleados sin ventas: con
+                    // left join, sales.status es NULL en esas filas y un WHERE normal
+                    // las descartaría.
+                    ->leftJoin('sales', function ($join) {
+                        $join->on('employees.id', '=', 'sales.employee_id')
+                            ->where(function ($query) {
+                                $query->where('sales.status', '!=', SaleStatusEnum::CANCELLED->value)
+                                    ->orWhereNull('sales.status');
+                            });
+                    })
                     ->groupBy('employees.id', 'employees.first_name', 'employees.last_name', 'employees.created_at', 'employees.updated_at')
                     ->orderBy('total_amount', 'desc')
             )

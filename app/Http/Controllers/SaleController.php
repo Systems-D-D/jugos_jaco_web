@@ -124,6 +124,7 @@ class SaleController extends Controller
             $date = $request->query('date');
 
             $sales = Sale::toDay($date)
+                ->notCancelled()
                 ->where('employee_id', Auth::user()->employee_id)
                 ->with([
                     'client:id,first_name,last_name,business_name',

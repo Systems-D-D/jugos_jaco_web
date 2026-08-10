@@ -131,6 +131,16 @@ class Sale extends Model
         return $query->where('status', SaleStatusEnum::CANCELLED);
     }
 
+    /**
+     * Excluye ventas anuladas. Usar en cualquier consulta que sume o liste ventas
+     * (cuadres, reportes, rankings, listados de la app) para que una venta anulada
+     * deje de contar en todos lados.
+     */
+    public function scopeNotCancelled($query)
+    {
+        return $query->where('status', '!=', SaleStatusEnum::CANCELLED);
+    }
+
     public function scopeByDateRange($query, $startDate, $endDate)
     {
         return $query->whereBetween('sale_date', [$startDate, $endDate]);
