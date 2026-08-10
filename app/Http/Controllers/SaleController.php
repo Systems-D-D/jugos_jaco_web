@@ -60,8 +60,9 @@ class SaleController extends Controller
         try {
             $employeeId = Auth::user()->employee_id;
 
-            $this->validateExistingReconciliation($employeeId);
-
+            // La verificación de idempotencia va antes que cualquier otra validación:
+            // un reintento de una venta ya registrada debe responder éxito aunque
+            // luego se haya creado el cuadre del día
             if ($uuid = $request->input('client_request_uuid')) {
                 $existingSale = Sale::where('client_request_uuid', $uuid)->first();
                 if ($existingSale) {
@@ -71,6 +72,8 @@ class SaleController extends Controller
                     );
                 }
             }
+
+            $this->validateExistingReconciliation($employeeId);
 
             $saleData = $this->prepareSaleData(collect($request->validated())->except('products')->toArray());
             $productsSaleData = $this->prepareSaleDetailsData($request['products']);
