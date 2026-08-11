@@ -54,12 +54,16 @@ class ManagementInventoryResource extends Resource
             ])
             ->actions([
                 Tables\Actions\ViewAction::make(),
-            ])
-            ->bulkActions([
-                Tables\Actions\BulkActionGroup::make([
-                    Tables\Actions\DeleteBulkAction::make(),
-                ]),
             ]);
+            // DeleteBulkAction retirado a propósito: management_inventory es un
+            // libro de asientos (igual criterio que sales, ver
+            // docs/devflow/specs/2026-08-10-sale-deletion-analysis.md). Además,
+            // SaleCancellationService::fetchSaleInventoryMovements depende de
+            // estas filas como única evidencia para revertir una venta creada
+            // desde la web — borrar un asiento SALIDA de una venta del mismo día
+            // rompe esa reversión en silencio o la hace caer en el camino
+            // equivocado. Un movimiento incorrecto se corrige con un asiento
+            // compensatorio, no borrándolo.
     }
 
     public static function getRelations(): array

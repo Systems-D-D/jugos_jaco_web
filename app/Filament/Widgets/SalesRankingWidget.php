@@ -2,7 +2,6 @@
 
 namespace App\Filament\Widgets;
 
-use App\Enums\SaleStatusEnum;
 use App\Models\Employee;
 use App\Models\Sale;
 use Filament\Tables;
@@ -54,7 +53,7 @@ class SalesRankingWidget extends BaseWidget
                     ->leftJoin('sales', function ($join) {
                         $join->on('employees.id', '=', 'sales.employee_id')
                             ->where(function ($query) {
-                                $query->where('sales.status', '!=', SaleStatusEnum::CANCELLED->value)
+                                $query->where('sales.status', '!=', Sale::cancelledStatusValue())
                                     ->orWhereNull('sales.status');
                             });
                     })

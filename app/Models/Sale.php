@@ -160,6 +160,17 @@ class Sale extends Model
         return $query->where('status', '!=', SaleStatusEnum::CANCELLED);
     }
 
+    /**
+     * Valor de "anulada" para queries SQL crudas (joins manuales, whereRaw)
+     * que no pueden aplicar scopeNotCancelled() por no ser un query builder
+     * de Eloquent sobre Sale (p. ej. un leftJoin desde Employee). Único
+     * lugar a actualizar si el criterio de "cancelada" cambia.
+     */
+    public static function cancelledStatusValue(): string
+    {
+        return SaleStatusEnum::CANCELLED->value;
+    }
+
     public function scopeByDateRange($query, $startDate, $endDate)
     {
         return $query->whereBetween('sale_date', [$startDate, $endDate]);

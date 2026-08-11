@@ -10,7 +10,6 @@ use App\Models\Sale;
 use App\Models\AccountReceivable;
 use App\Models\FinishedProductInventory;
 use App\Models\RawMaterialsInventory;
-use App\Enums\SaleStatusEnum;
 use App\Enums\UserRole;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -64,7 +63,7 @@ class StatsOverview extends BaseWidget
             ->leftJoin('sales', 'employees.id', '=', 'sales.employee_id')
             ->whereMonth('sales.sale_date', now()->month)
             ->whereYear('sales.sale_date', now()->year)
-            ->where('sales.status', '!=', SaleStatusEnum::CANCELLED->value)
+            ->where('sales.status', '!=', Sale::cancelledStatusValue())
             ->groupBy('employees.id', 'employees.first_name', 'employees.last_name')
             ->orderBy(DB::raw('SUM(sales.total_amount)'), 'desc')
             ->first();
