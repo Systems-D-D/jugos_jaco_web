@@ -443,9 +443,12 @@ class CreateSale extends Component
     public function save(): void
     {
         // Validation
+        // sale_date no se valida como entrada editable: la fecha de venta la fija
+        // el servidor (ver R7 en docs/devflow/specs/2026-08-10-sale-deletion-analysis.md).
+        // Un campo readonly en el HTML no impide que un cliente Livewire manipulado
+        // envíe otro valor, así que se ignora explícitamente más abajo.
         $this->validate([
             'employee_id' => 'required|exists:employees,id',
-            'sale_date' => 'required|date',
             'payment_method' => 'required|string',
             'payment_term' => 'required|string|in:' . implode(',', array_column(PaymentTermEnum::cases(), 'value')),
             'amount_paid' => 'required|numeric|min:0',
@@ -476,7 +479,7 @@ class CreateSale extends Component
             $sale = Sale::create([
                 'client_id' => $this->client_id,
                 'employee_id' => $this->employee_id,
-                'sale_date' => $this->sale_date,
+                'sale_date' => now(),
                 'subtotal' => $subtotal,
                 'total_amount' => $final_total,
                 'payment_method' => PaymentTypeEnum::from($payment_type),
@@ -521,6 +524,7 @@ class CreateSale extends Component
                         \App\Enums\TypeInventoryManagementEnum::SALIDA->value,
                         'Venta de producto: ' . $item['name'],
                         $sale->id,
+                        Sale::class,
                     );
                 }
             }

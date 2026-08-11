@@ -12,9 +12,10 @@ class EditSale extends EditRecord
 
     protected function getHeaderActions(): array
     {
+        // DeleteAction retirado: una venta nunca se borra físicamente, se anula
+        // (ver docs/devflow/specs/2026-08-10-sale-deletion-analysis.md).
         return [
             Actions\ViewAction::make(),
-            Actions\DeleteAction::make(),
         ];
     }
 }

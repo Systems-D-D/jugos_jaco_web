@@ -11,16 +11,20 @@ class AccountReceivableStatsOverview extends BaseWidget
 {
     protected function getStats(): array
     {
-        $totalReceivables = AccountReceivable::count();
+        // Las CxC canceladas (venta anulada, sin pagos) no son parte de la
+        // cartera activa: quedan fuera de todos los totales para que un
+        // puñado de anulaciones no infle "Monto Total" ni desinfle el
+        // porcentaje de cobranza con dinero que nunca se iba a cobrar.
+        $totalReceivables = AccountReceivable::notCancelled()->count();
         $pendingReceivables = AccountReceivable::where('status', AccountReceivableStatusEnum::PENDING)->count();
         $paidReceivables = AccountReceivable::where('status', AccountReceivableStatusEnum::PAID)->count();
         $overdueReceivables = AccountReceivable::where('due_date', '<', now())
             ->where('status', AccountReceivableStatusEnum::PENDING)
             ->count();
 
-        $totalAmount = AccountReceivable::sum('total_amount');
+        $totalAmount = AccountReceivable::notCancelled()->sum('total_amount');
         $totalPending = AccountReceivable::where('status', AccountReceivableStatusEnum::PENDING)->sum('remaining_balance');
-        $totalPaid = AccountReceivable::sum('total_amount') - AccountReceivable::sum('remaining_balance');
+        $totalPaid = $totalAmount - AccountReceivable::notCancelled()->sum('remaining_balance');
 
         return [
             Stat::make('Total Cuentas por Cobrar', $totalReceivables)

@@ -4,6 +4,7 @@ namespace App\Filament\Resources\AssignedProductResource\RelationManagers;
 
 use App\Enums\TypeInventoryManagementEnum;
 use App\Filament\Support\FilamentNotification;
+use App\Models\AssignedProduct;
 use App\Models\DetailAssignedProduct;
 use App\Models\FinishedProductInventory;
 use App\Services\ManagementInventoryService;
@@ -211,6 +212,7 @@ class DetailsRelationManager extends RelationManager
             type: TypeInventoryManagementEnum::SALIDA->value,
             description: 'Asignación de producto al empleado: ' . $record->assignedProduct->employee->first_name . ' ' . $record->assignedProduct->employee->last_name,
             referenceId: $record->assignedProduct->id,
+            referenceType: AssignedProduct::class,
         );
     }
 
@@ -227,6 +229,7 @@ class DetailsRelationManager extends RelationManager
             type: TypeInventoryManagementEnum::ENTRADA->value,
             description: 'Eliminación de producto asignado al empleado: ' . $record->assignedProduct->employee->first_name . ' ' . $record->assignedProduct->employee->last_name,
             referenceId: $record->assignedProduct->id,
+            referenceType: AssignedProduct::class,
         );
     }
 
@@ -254,6 +257,7 @@ class DetailsRelationManager extends RelationManager
                 type: TypeInventoryManagementEnum::ENTRADA->value,
                 description: 'Ajuste de producto asignado al empleado: ' . $record->assignedProduct->employee->first_name . ' ' . $record->assignedProduct->employee->last_name,
                 referenceId: $record->assignedProduct->id,
+                referenceType: AssignedProduct::class,
             );
         } elseif ($difference < 0) {
             app(ManagementInventoryService::class)->processMovement(
@@ -262,6 +266,7 @@ class DetailsRelationManager extends RelationManager
                 type: TypeInventoryManagementEnum::SALIDA->value,
                 description: 'Ajuste de producto asignado al empleado: ' . $record->assignedProduct->employee->first_name . ' ' . $record->assignedProduct->employee->last_name,
                 referenceId: $record->assignedProduct->id,
+                referenceType: AssignedProduct::class,
             );
         }
     }

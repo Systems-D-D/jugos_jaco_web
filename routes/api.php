@@ -61,6 +61,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/', [SaleController::class, 'createSale']);
         Route::get('/', [SaleController::class, 'getSales']);
         Route::get('/{id}', [SaleController::class, 'getSaleDetailsBySaleId']);
+        Route::delete('/{id}', [SaleController::class, 'cancelSale']);
     });
 
     Route::prefix('account-receivable')->group(function () {

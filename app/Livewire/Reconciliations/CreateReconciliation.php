@@ -206,6 +206,7 @@ class CreateReconciliation extends Component
 
         // Load sales for the selected date and employee
         $this->sales = Sale::with(['client'])
+            ->notCancelled()
             ->where('employee_id', $this->employee_id)
             ->whereDate('sale_date', $selectedDate)
             ->get()

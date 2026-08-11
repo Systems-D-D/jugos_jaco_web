@@ -242,6 +242,7 @@ class SaleService
                         TypeInventoryManagementEnum::SALIDA->value,
                         'Venta de producto: ' . ($productData['name'] ?? 'Producto #' . $productData['product_id']),
                         $sale->id,
+                        Sale::class,
                     );
                 }
             }

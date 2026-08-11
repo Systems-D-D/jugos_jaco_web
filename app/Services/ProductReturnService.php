@@ -62,7 +62,8 @@ class ProductReturnService
                 quantity: $productReturn->quantity,
                 type: $movementType,
                 description: $description,
-                referenceId: $productReturn->id
+                referenceId: $productReturn->id,
+                referenceType: ProductReturn::class,
             );
 
             Log::info('Movimiento de inventario registrado exitosamente', [
@@ -122,7 +123,8 @@ class ProductReturnService
                 $productReturn->quantity,
                 $movementType->value,
                 $description,
-                $productReturn->id
+                $productReturn->id,
+                ProductReturn::class,
             );
 
             Log::info('Movimiento de inventario revertido exitosamente', [

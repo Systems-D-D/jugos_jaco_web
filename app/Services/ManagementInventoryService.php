@@ -18,6 +18,9 @@ class ManagementInventoryService
      * @param string $type El tipo de movimiento (entrada, salida, dañado, devolución)
      * @param string $description Descripción del movimiento
      * @param int|null $referenceId ID de referencia opcional
+     * @param class-string|null $referenceType Clase del modelo al que pertenece $referenceId
+     *        (p. ej. Sale::class, ProductReturn::class, AssignedProduct::class). Sin esto,
+     *        reference_id es ambiguo entre orígenes distintos que reutilizan el mismo id.
      * @return ManagementInventory El registro creado
      * @throws \InvalidArgumentException Si el tipo de movimiento no es válido
      */
@@ -26,15 +29,16 @@ class ManagementInventoryService
         float $quantity,
         string $type,
         string $description,
-        ?int $referenceId = null
+        ?int $referenceId = null,
+        ?string $referenceType = null
     ): ManagementInventory {
         if ($quantity <= 0) throw new \InvalidArgumentException('La cantidad debe ser mayor que cero');
 
         return match ($type) {
-            TypeInventoryManagementEnum::ENTRADA->value => $this->registerEntry($model, $quantity, $description, $referenceId),
-            TypeInventoryManagementEnum::SALIDA->value => $this->registerExit($model, $quantity, $description, $referenceId),
-            TypeInventoryManagementEnum::DANADO->value => $this->registerDamaged($model, $quantity, $description, $referenceId),
-            TypeInventoryManagementEnum::DEVOLUCION->value => $this->registerReturn($model, $quantity, $description, $referenceId),
+            TypeInventoryManagementEnum::ENTRADA->value => $this->registerEntry($model, $quantity, $description, $referenceId, $referenceType),
+            TypeInventoryManagementEnum::SALIDA->value => $this->registerExit($model, $quantity, $description, $referenceId, $referenceType),
+            TypeInventoryManagementEnum::DANADO->value => $this->registerDamaged($model, $quantity, $description, $referenceId, $referenceType),
+            TypeInventoryManagementEnum::DEVOLUCION->value => $this->registerReturn($model, $quantity, $description, $referenceId, $referenceType),
             default => throw new \InvalidArgumentException('Tipo de movimiento de inventario no válido: ' . $type),
         };
     }
@@ -47,6 +51,7 @@ class ManagementInventoryService
      * @param TypeInventoryManagementEnum $type El tipo de movimiento (entrada, salida, dañado, devolución)
      * @param string $description Descripción del movimiento
      * @param int|null $referenceId ID de referencia opcional (ej: ID de factura, orden, etc.)
+     * @param class-string|null $referenceType Clase del modelo al que pertenece $referenceId
      * @return ManagementInventory El registro creado
      */
     protected function registerMovement(
@@ -54,7 +59,8 @@ class ManagementInventoryService
         float $quantity,
         TypeInventoryManagementEnum $type,
         string $description,
-        ?int $referenceId = null
+        ?int $referenceId = null,
+        ?string $referenceType = null
     ): ManagementInventory {
         if (!method_exists($model, 'movements')) throw new \RuntimeException('El modelo no tiene una relación "movements" definida');
 
@@ -63,6 +69,7 @@ class ManagementInventoryService
             'quantity' => $quantity,
             'type' => $type->value,
             'reference_id' => $referenceId,
+            'reference_type' => $referenceType,
             'created_by' => Auth::user()->name,
         ]);
     }
@@ -74,15 +81,17 @@ class ManagementInventoryService
      * @param float $quantity La cantidad a incrementar
      * @param string $description Descripción de la entrada
      * @param int|null $referenceId ID de referencia opcional
+     * @param class-string|null $referenceType Clase del modelo al que pertenece $referenceId
      * @return ManagementInventory El registro creado
      */
     public function registerEntry(
         Model $model,
         float $quantity,
         string $description,
-        ?int $referenceId = null
+        ?int $referenceId = null,
+        ?string $referenceType = null
     ): ManagementInventory {
-        return DB::transaction(function () use ($model, $quantity, $description, $referenceId) {
+        return DB::transaction(function () use ($model, $quantity, $description, $referenceId, $referenceType) {
             DB::table($model->getTable())
                 ->where('id', $model->id)
                 ->increment('stock', $quantity);
@@ -92,7 +101,8 @@ class ManagementInventoryService
                 $quantity,
                 TypeInventoryManagementEnum::ENTRADA,
                 $description,
-                $referenceId
+                $referenceId,
+                $referenceType
             );
         });
     }
@@ -104,15 +114,17 @@ class ManagementInventoryService
      * @param float $quantity La cantidad a decrementar
      * @param string $description Descripción de la salida
      * @param int|null $referenceId ID de referencia opcional
+     * @param class-string|null $referenceType Clase del modelo al que pertenece $referenceId
      * @return ManagementInventory El registro creado
      */
     public function registerExit(
         Model $model,
         float $quantity,
         string $description,
-        ?int $referenceId = null
+        ?int $referenceId = null,
+        ?string $referenceType = null
     ): ManagementInventory {
-        return DB::transaction(function () use ($model, $quantity, $description, $referenceId) {
+        return DB::transaction(function () use ($model, $quantity, $description, $referenceId, $referenceType) {
             $affected = DB::table($model->getTable())
                 ->where('id', $model->id)
                 ->where('stock', '>=', $quantity)
@@ -128,7 +140,8 @@ class ManagementInventoryService
                 $quantity,
                 TypeInventoryManagementEnum::SALIDA,
                 $description,
-                $referenceId
+                $referenceId,
+                $referenceType
             );
         });
     }
@@ -140,15 +153,17 @@ class ManagementInventoryService
      * @param float $quantity La cantidad dañada
      * @param string $description Descripción del daño
      * @param int|null $referenceId ID de referencia opcional
+     * @param class-string|null $referenceType Clase del modelo al que pertenece $referenceId
      * @return ManagementInventory El registro creado
      */
     public function registerDamaged(
         Model $model,
         float $quantity,
         string $description,
-        ?int $referenceId = null
+        ?int $referenceId = null,
+        ?string $referenceType = null
     ): ManagementInventory {
-        return DB::transaction(function () use ($model, $quantity, $description, $referenceId) {
+        return DB::transaction(function () use ($model, $quantity, $description, $referenceId, $referenceType) {
             $affected = DB::table($model->getTable())
                 ->where('id', $model->id)
                 ->where('stock', '>=', $quantity)
@@ -164,7 +179,8 @@ class ManagementInventoryService
                 $quantity,
                 TypeInventoryManagementEnum::DANADO,
                 $description,
-                $referenceId
+                $referenceId,
+                $referenceType
             );
         });
     }
@@ -176,15 +192,17 @@ class ManagementInventoryService
      * @param float $quantity La cantidad devuelta
      * @param string $description Descripción de la devolución
      * @param int|null $referenceId ID de referencia opcional
+     * @param class-string|null $referenceType Clase del modelo al que pertenece $referenceId
      * @return ManagementInventory El registro creado
      */
     public function registerReturn(
         Model $model,
         float $quantity,
         string $description,
-        ?int $referenceId = null
+        ?int $referenceId = null,
+        ?string $referenceType = null
     ): ManagementInventory {
-        return DB::transaction(function () use ($model, $quantity, $description, $referenceId) {
+        return DB::transaction(function () use ($model, $quantity, $description, $referenceId, $referenceType) {
             DB::table($model->getTable())
                 ->where('id', $model->id)
                 ->increment('stock', $quantity);
@@ -194,7 +212,8 @@ class ManagementInventoryService
                 $quantity,
                 TypeInventoryManagementEnum::DEVOLUCION,
                 $description,
-                $referenceId
+                $referenceId,
+                $referenceType
             );
         });
     }

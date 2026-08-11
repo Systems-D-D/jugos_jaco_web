@@ -19,12 +19,24 @@ class PaymentService
     public static function processPayment(AccountReceivable $accountReceivable, array $paymentData): array
     {
         try {
-            self::validatePaymentAmount($accountReceivable, $paymentData['amount']);
-            
             $payment = DB::transaction(function () use ($accountReceivable, $paymentData) {
-                $newBalance = $accountReceivable->remaining_balance - $paymentData['amount'];
-                
-                $payment = $accountReceivable->payments()->create([
+                // Se relee y bloquea dentro de la transacción: el objeto
+                // recibido por parámetro puede estar desactualizado (p. ej.
+                // SaleCancellationService pudo anular la cuenta justo
+                // después de que el controlador la cargara, fuera de esta
+                // transacción). lockForUpdate() serializa contra esa misma
+                // fila que SaleCancellationService también bloquea, así que
+                // exactamente una de las dos operaciones gana la carrera y
+                // la otra ve el estado ya actualizado.
+                $locked = AccountReceivable::whereKey($accountReceivable->id)
+                    ->lockForUpdate()
+                    ->firstOrFail();
+
+                self::validatePaymentAmount($locked, $paymentData['amount']);
+
+                $newBalance = $locked->remaining_balance - $paymentData['amount'];
+
+                $payment = $locked->payments()->create([
                     'amount' => $paymentData['amount'],
                     'balance_after_payment' => max(0, $newBalance),
                     'payment_date' => $paymentData['payment_date'],
@@ -33,7 +45,7 @@ class PaymentService
                 ]);
 
                 // Actualizar el saldo de la cuenta por cobrar
-                $accountReceivable->update([
+                $locked->update([
                     'remaining_balance' => max(0, $newBalance),
                     'status' => $newBalance <= 0 ? AccountReceivableStatusEnum::PAID : AccountReceivableStatusEnum::PENDING,
                     'paid_at' => $newBalance <= 0 ? now() : null,

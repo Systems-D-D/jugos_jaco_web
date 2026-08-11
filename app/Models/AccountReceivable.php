@@ -75,4 +75,13 @@ class AccountReceivable extends Model
     {
         return $query->where('status', AccountReceivableStatusEnum::PAID);
     }
+
+    /**
+     * Excluye cuentas por cobrar canceladas (venta anulada, sin pagos). Usar en
+     * cualquier consulta que liste o cuente cuentas activas del cliente/vendedor.
+     */
+    public function scopeNotCancelled($query)
+    {
+        return $query->where('status', '!=', AccountReceivableStatusEnum::CANCELLED);
+    }
 }

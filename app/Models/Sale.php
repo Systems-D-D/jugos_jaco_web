@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\SaleStatusEnum;
+use App\Enums\SaleChannelEnum;
 use App\Enums\PaymentTypeEnum;
 use App\Enums\PaymentTermEnum;
 use App\Models\Scopes\CashierSaleScope;
@@ -22,6 +23,7 @@ class Sale extends Model
         'invoice_series_id',
         'client_id',
         'employee_id',
+        'branch_id',
         'deposit_id',
         'sale_date',
         'due_date',
@@ -29,6 +31,7 @@ class Sale extends Model
         'payment_term',
         'payment_method',
         'cash_amount',
+        'payment_reference',
         'subtotal',
         'discount_percentage',
         'discount_amount',
@@ -36,16 +39,22 @@ class Sale extends Model
         'total_amount',
         'notes',
         'client_request_uuid',
+        'channel',
         'created_by',
         'updated_by',
         'confirmed_at',
+        'cancelled_at',
+        'cancelled_by',
+        'cancellation_reason',
     ];
 
     protected $casts = [
         'sale_date' => 'date',
         'due_date' => 'date',
         'confirmed_at' => 'datetime',
+        'cancelled_at' => 'datetime',
         'status' => SaleStatusEnum::class,
+        'channel' => SaleChannelEnum::class,
         'payment_term' => PaymentTermEnum::class,
         'payment_method' => PaymentTypeEnum::class,
         'subtotal' => 'decimal:4',
@@ -65,6 +74,11 @@ class Sale extends Model
         return $this->belongsTo(Employee::class);
     }
 
+    public function branch(): BelongsTo
+    {
+        return $this->belongsTo(Branch::class);
+    }
+
     public function invoiceSeries(): BelongsTo
     {
         return $this->belongsTo(InvoicesSeries::class, 'invoice_series_id');
@@ -78,6 +92,11 @@ class Sale extends Model
     public function updatedBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'updated_by');
+    }
+
+    public function cancelledBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'cancelled_by');
     }
 
     public function details(): HasMany
@@ -129,6 +148,27 @@ class Sale extends Model
     public function scopeCancelled($query)
     {
         return $query->where('status', SaleStatusEnum::CANCELLED);
+    }
+
+    /**
+     * Excluye ventas anuladas. Usar en cualquier consulta que sume o liste ventas
+     * (cuadres, reportes, rankings, listados de la app) para que una venta anulada
+     * deje de contar en todos lados.
+     */
+    public function scopeNotCancelled($query)
+    {
+        return $query->where('status', '!=', SaleStatusEnum::CANCELLED);
+    }
+
+    /**
+     * Valor de "anulada" para queries SQL crudas (joins manuales, whereRaw)
+     * que no pueden aplicar scopeNotCancelled() por no ser un query builder
+     * de Eloquent sobre Sale (p. ej. un leftJoin desde Employee). Único
+     * lugar a actualizar si el criterio de "cancelada" cambia.
+     */
+    public static function cancelledStatusValue(): string
+    {
+        return SaleStatusEnum::CANCELLED->value;
     }
 
     public function scopeByDateRange($query, $startDate, $endDate)
