@@ -12,10 +12,10 @@ use Filament\Forms;
 use Filament\Forms\Concerns\InteractsWithForms;
 use Filament\Forms\Contracts\HasForms;
 use Filament\Forms\Form;
-use Filament\Forms\Get;
 use Filament\Notifications\Notification;
 use Filament\Pages\Page;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 
@@ -26,6 +26,11 @@ use Illuminate\Support\Facades\DB;
  * aporta su producto y cantidad. Todo el trabajo real lo sigue haciendo
  * ManagementInventoryService::processMovement — esta página sólo arma el
  * lote y lo envuelve en una transacción.
+ *
+ * Las líneas viven fuera del formulario de Filament (en $lines, como estado
+ * plano de Livewire) para poder pintarlas como tabla: el Repeater de
+ * Filament 3 sólo sabe apilar tarjetas, y con quince productos eso es una
+ * pantalla imposible de revisar de un vistazo.
  */
 class RegisterInventoryMovements extends Page implements HasForms
 {
@@ -41,14 +46,19 @@ class RegisterInventoryMovements extends Page implements HasForms
     public const TYPE_FINISHED = 'finished';
     public const TYPE_RAW = 'raw';
 
+    /** Cabecera del lote (formulario de Filament). */
     public ?array $data = [];
+
+    /** @var array<int, array{inventory_id: int|string, quantity: string|null}> */
+    public array $lines = [];
+
+    public string $search = '';
 
     public function mount(): void
     {
         $this->form->fill([
             'inventory_type' => self::TYPE_FINISHED,
             'type' => TypeInventoryManagementEnum::ENTRADA->value,
-            'lines' => [[]],
         ]);
     }
 
@@ -74,7 +84,7 @@ class RegisterInventoryMovements extends Page implements HasForms
             ->schema([
                 Forms\Components\Section::make('Datos del lote')
                     ->description('Se aplican a todos los productos que agregue abajo.')
-                    ->columns(2)
+                    ->columns(['default' => 1, 'sm' => 2, 'xl' => 4])
                     ->schema([
                         Forms\Components\Select::make('inventory_type')
                             ->label('Inventario')
@@ -87,7 +97,7 @@ class RegisterInventoryMovements extends Page implements HasForms
                             ->live()
                             // Cambiar de inventario invalida las líneas ya
                             // cargadas: son ids de otra tabla.
-                            ->afterStateUpdated(fn (Forms\Set $set) => $set('lines', [[]])),
+                            ->afterStateUpdated(fn () => $this->resetLines()),
 
                         Forms\Components\Select::make('branch_id')
                             ->label('Sucursal')
@@ -96,7 +106,7 @@ class RegisterInventoryMovements extends Page implements HasForms
                             ->native(false)
                             ->searchable()
                             ->live()
-                            ->afterStateUpdated(fn (Forms\Set $set) => $set('lines', [[]])),
+                            ->afterStateUpdated(fn () => $this->resetLines()),
 
                         Forms\Components\Select::make('type')
                             ->label('Tipo de movimiento')
@@ -111,101 +121,162 @@ class RegisterInventoryMovements extends Page implements HasForms
                             ->maxLength(255)
                             ->placeholder('Motivo del movimiento'),
                     ]),
-
-                Forms\Components\Repeater::make('lines')
-                    ->label('Productos')
-                    ->addActionLabel('Agregar producto')
-                    ->columns(12)
-                    ->minItems(1)
-                    ->reorderable(false)
-                    ->schema([
-                        Forms\Components\Select::make('inventory_id')
-                            ->label('Producto')
-                            ->options(fn (Get $get) => static::inventoryOptions(
-                                $get('../../inventory_type'),
-                                $get('../../branch_id'),
-                            ))
-                            ->searchable()
-                            ->preload()
-                            ->required()
-                            // Evita cargar dos líneas del mismo producto: se
-                            // sumarían por separado y el usuario no lo vería.
-                            ->distinct()
-                            ->live()
-                            ->columnSpan(7)
-                            ->placeholder(fn (Get $get) => $get('../../branch_id')
-                                ? 'Escriba para buscar…'
-                                : 'Elija primero una sucursal'),
-
-                        Forms\Components\TextInput::make('quantity')
-                            ->label('Cantidad')
-                            ->numeric()
-                            ->minValue(0.01)
-                            ->step(0.01)
-                            ->required()
-                            ->live(onBlur: true)
-                            ->columnSpan(2),
-
-                        Forms\Components\Placeholder::make('resulting')
-                            ->label('Existencia')
-                            ->columnSpan(3)
-                            ->content(function (Get $get): string {
-                                $record = static::resolveInventory(
-                                    $get('../../inventory_type'),
-                                    $get('inventory_id'),
-                                );
-
-                                if (!$record) {
-                                    return '—';
-                                }
-
-                                $unit = static::unitLabel($record);
-                                $current = (float) $record->stock;
-                                $quantity = (float) ($get('quantity') ?? 0);
-
-                                if ($quantity <= 0) {
-                                    return number_format($current, 2) . ' ' . $unit;
-                                }
-
-                                $resulting = static::reducesStock($get('../../type'))
-                                    ? $current - $quantity
-                                    : $current + $quantity;
-
-                                return number_format($current, 2)
-                                    . ' → ' . number_format($resulting, 2)
-                                    . ' ' . $unit;
-                            }),
-                    ]),
             ])
             ->statePath('data');
+    }
+
+    public function resetLines(): void
+    {
+        $this->lines = [];
+        $this->search = '';
+        $this->resetErrorBag();
+    }
+
+    /**
+     * Productos que coinciden con la búsqueda y todavía no están en el lote.
+     *
+     * @return Collection<int, array{id: int, label: string, stock: string}>
+     */
+    public function suggestions(): Collection
+    {
+        $branchId = $this->data['branch_id'] ?? null;
+
+        if (!$branchId) {
+            return collect();
+        }
+
+        $alreadyAdded = collect($this->lines)->pluck('inventory_id')->all();
+        $term = trim($this->search);
+
+        return $this->availableInventories($branchId)
+            ->reject(fn (array $item) => in_array($item['id'], $alreadyAdded))
+            ->when($term !== '', fn (Collection $items) => $items->filter(
+                fn (array $item) => str_contains(
+                    mb_strtolower($item['label']),
+                    mb_strtolower($term)
+                )
+            ))
+            ->take(8)
+            ->values();
+    }
+
+    public function addLine(int $inventoryId): void
+    {
+        // El mismo producto dos veces se sumaría por separado y el usuario
+        // no lo vería venir; se ignora en silencio porque el buscador ya
+        // excluye los que están cargados.
+        if (collect($this->lines)->contains('inventory_id', $inventoryId)) {
+            return;
+        }
+
+        $this->lines[] = ['inventory_id' => $inventoryId, 'quantity' => null];
+        $this->search = '';
+    }
+
+    /** Enter en el buscador agrega el primer resultado, sin tocar el mouse. */
+    public function addFirstSuggestion(): void
+    {
+        $first = $this->suggestions()->first();
+
+        if ($first) {
+            $this->addLine($first['id']);
+        }
+    }
+
+    public function removeLine(int $index): void
+    {
+        unset($this->lines[$index]);
+        $this->lines = array_values($this->lines);
+        $this->resetErrorBag();
+    }
+
+    /**
+     * Las líneas resueltas contra la base, con existencia actual y resultante.
+     *
+     * @return Collection<int, array<string, mixed>>
+     */
+    public function lineRows(): Collection
+    {
+        $inventoryType = $this->data['inventory_type'] ?? self::TYPE_FINISHED;
+        $movementType = $this->data['type'] ?? null;
+
+        return collect($this->lines)->map(function (array $line, int $index) use ($inventoryType, $movementType) {
+            $record = static::resolveInventory($inventoryType, $line['inventory_id']);
+
+            if (!$record) {
+                return [
+                    'index' => $index,
+                    'name' => 'Producto no disponible',
+                    'unit' => '',
+                    'current' => null,
+                    'resulting' => null,
+                    'quantity' => $line['quantity'] ?? null,
+                ];
+            }
+
+            $current = (float) $record->stock;
+            $quantity = (float) ($line['quantity'] ?? 0);
+            $resulting = null;
+
+            if ($quantity > 0 && $movementType) {
+                $resulting = static::reducesStock($movementType)
+                    ? $current - $quantity
+                    : $current + $quantity;
+            }
+
+            return [
+                'index' => $index,
+                'name' => static::describeRecord($record),
+                'unit' => static::unitLabel($record),
+                'current' => $current,
+                'resulting' => $resulting,
+                'quantity' => $line['quantity'] ?? null,
+            ];
+        });
+    }
+
+    /** @return array{products: int, units: float} */
+    public function totals(): array
+    {
+        return [
+            'products' => count($this->lines),
+            'units' => (float) collect($this->lines)->sum(fn (array $line) => (float) ($line['quantity'] ?? 0)),
+        ];
+    }
+
+    public function movementTypeLabel(): ?string
+    {
+        $type = $this->data['type'] ?? null;
+
+        return $type ? TypeInventoryManagementEnum::from($type)->getLabel() : null;
+    }
+
+    public function movementTypeColor(): string
+    {
+        $type = $this->data['type'] ?? null;
+
+        return $type ? TypeInventoryManagementEnum::getColor($type) : 'gray';
     }
 
     public function register(): void
     {
         $data = $this->form->getState();
 
-        $inventoryType = $data['inventory_type'];
-        $movementType = $data['type'];
-        $description = $data['description'];
-        $lines = $data['lines'] ?? [];
-
-        if (empty($lines)) {
-            Notification::make()
-                ->title('Agregue al menos un producto')
-                ->warning()
-                ->send();
-
+        if (!$this->validateLines()) {
             return;
         }
 
+        $inventoryType = $data['inventory_type'];
+        $movementType = $data['type'];
+        $description = $data['description'];
         $service = app(ManagementInventoryService::class);
 
         try {
             // Todo o nada: si una línea no tiene existencia suficiente se
             // cae el lote completo, en vez de dejar registrados los
             // anteriores y que nadie sepa cuáles pasaron.
-            DB::transaction(function () use ($lines, $inventoryType, $movementType, $description, $service) {
-                foreach ($lines as $line) {
+            DB::transaction(function () use ($inventoryType, $movementType, $description, $service) {
+                foreach ($this->lines as $line) {
                     $record = static::resolveInventory($inventoryType, $line['inventory_id']);
 
                     if (!$record) {
@@ -241,7 +312,7 @@ class RegisterInventoryMovements extends Page implements HasForms
             return;
         }
 
-        $count = count($lines);
+        $count = count($this->lines);
 
         Notification::make()
             ->title($count === 1 ? 'Movimiento registrado' : "{$count} movimientos registrados")
@@ -249,44 +320,68 @@ class RegisterInventoryMovements extends Page implements HasForms
             ->success()
             ->send();
 
-        // Se conservan tipo, sucursal y descripción para encadenar otro lote.
-        $this->form->fill([
-            'inventory_type' => $inventoryType,
-            'branch_id' => $data['branch_id'] ?? null,
-            'type' => $movementType,
-            'description' => $description,
-            'lines' => [[]],
-        ]);
+        // Se conservan sucursal, tipo y descripción para encadenar otro lote.
+        $this->resetLines();
+    }
+
+    /** Valida las líneas, que viven fuera del formulario de Filament. */
+    protected function validateLines(): bool
+    {
+        $this->resetErrorBag();
+
+        if (empty($this->lines)) {
+            Notification::make()
+                ->title('Agregue al menos un producto')
+                ->body('Busque el producto arriba y agréguelo al lote.')
+                ->warning()
+                ->send();
+
+            return false;
+        }
+
+        $valid = true;
+
+        foreach ($this->lines as $index => $line) {
+            $quantity = $line['quantity'] ?? null;
+
+            if ($quantity === null || $quantity === '' || !is_numeric($quantity) || (float) $quantity <= 0) {
+                $this->addError("lines.{$index}.quantity", 'Ingrese una cantidad mayor a cero.');
+                $valid = false;
+            }
+        }
+
+        return $valid;
     }
 
     /**
-     * @return array<int|string, string>
+     * @return Collection<int, array{id: int, label: string, stock: string}>
      */
-    protected static function inventoryOptions(?string $inventoryType, $branchId): array
+    protected function availableInventories($branchId): Collection
     {
-        if (!$branchId) {
-            return [];
-        }
+        $inventoryType = $this->data['inventory_type'] ?? self::TYPE_FINISHED;
 
         if ($inventoryType === self::TYPE_RAW) {
             return RawMaterialsInventory::where('branch_id', $branchId)
                 ->orderBy('name')
                 ->get()
-                ->mapWithKeys(fn (RawMaterialsInventory $item) => [
-                    $item->id => "{$item->name} — {$item->stock} {$item->unit_type}",
+                ->map(fn (RawMaterialsInventory $item) => [
+                    'id' => $item->id,
+                    'label' => $item->name,
+                    'stock' => number_format((float) $item->stock, 2) . ' ' . $item->unit_type,
                 ])
-                ->all();
+                ->values();
         }
 
         return FinishedProductInventory::with('product')
             ->where('branch_id', $branchId)
             ->get()
             ->sortBy(fn (FinishedProductInventory $item) => $item->product?->name ?? '')
-            ->mapWithKeys(fn (FinishedProductInventory $item) => [
-                $item->id => ($item->product?->name ?? "Producto #{$item->product_id}")
-                    . " — {$item->stock} en existencia",
+            ->map(fn (FinishedProductInventory $item) => [
+                'id' => $item->id,
+                'label' => $item->product?->name ?? "Producto #{$item->product_id}",
+                'stock' => number_format((float) $item->stock, 2) . ' unidades',
             ])
-            ->all();
+            ->values();
     }
 
     protected static function resolveInventory(?string $inventoryType, $id): ?Model

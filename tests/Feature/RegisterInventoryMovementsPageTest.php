@@ -69,11 +69,11 @@ it('registers a batch of entradas in one pass', function () {
             'branch_id' => $this->branch->id,
             'type' => TypeInventoryManagementEnum::ENTRADA->value,
             'description' => 'Producción del 11/08/2026',
-            'lines' => [
+        ])
+        ->set('lines', [
                 ['inventory_id' => $naranja->id, 'quantity' => 200],
                 ['inventory_id' => $pina->id, 'quantity' => 120],
                 ['inventory_id' => $mango->id, 'quantity' => 80],
-            ],
         ])
         ->call('register')
         ->assertHasNoFormErrors();
@@ -96,12 +96,12 @@ it('rolls back the whole batch when one line has insufficient stock', function (
             'branch_id' => $this->branch->id,
             'type' => TypeInventoryManagementEnum::SALIDA->value,
             'description' => 'Traslado a sucursal norte',
-            'lines' => [
+        ])
+        ->set('lines', [
                 ['inventory_id' => $naranja->id, 'quantity' => 50],
                 // Esta línea no alcanza: debe tumbar todo el lote.
                 ['inventory_id' => $pina->id, 'quantity' => 999],
                 ['inventory_id' => $mango->id, 'quantity' => 20],
-            ],
         ])
         ->call('register');
 
@@ -123,10 +123,10 @@ it('registers a batch of salidas and decreases every stock', function () {
             'branch_id' => $this->branch->id,
             'type' => TypeInventoryManagementEnum::SALIDA->value,
             'description' => 'Traslado',
-            'lines' => [
+        ])
+        ->set('lines', [
                 ['inventory_id' => $naranja->id, 'quantity' => 48],
                 ['inventory_id' => $mango->id, 'quantity' => 12],
-            ],
         ])
         ->call('register')
         ->assertHasNoFormErrors();
@@ -150,9 +150,9 @@ it('works with the raw materials inventory too', function () {
             'branch_id' => $this->branch->id,
             'type' => TypeInventoryManagementEnum::ENTRADA->value,
             'description' => 'Compra semanal',
-            'lines' => [
+        ])
+        ->set('lines', [
                 ['inventory_id' => $azucar->id, 'quantity' => 300],
-            ],
         ])
         ->call('register')
         ->assertHasNoFormErrors();
@@ -166,7 +166,127 @@ it('works with the raw materials inventory too', function () {
     expect($movement)->not->toBeNull();
 });
 
-it('rejects the same product twice in the batch', function () {
+it('never adds the same product twice to the batch', function () {
+    // La garantía vive en addLine(): dos líneas del mismo producto se
+    // sumarían por separado y el usuario no lo vería venir.
+    $naranja = makeInventoryFor($this->branch, 'Jugo de Naranja 500ml', 248);
+
+    $component = Livewire::test(RegisterInventoryMovements::class)
+        ->fillForm([
+            'inventory_type' => RegisterInventoryMovements::TYPE_FINISHED,
+            'branch_id' => $this->branch->id,
+            'type' => TypeInventoryManagementEnum::ENTRADA->value,
+            'description' => 'Producción',
+        ])
+        ->call('addLine', $naranja->id)
+        ->call('addLine', $naranja->id);
+
+    expect($component->get('lines'))->toHaveCount(1);
+});
+
+it('hides products already in the batch from the search suggestions', function () {
+    $naranja = makeInventoryFor($this->branch, 'Jugo de Naranja 500ml', 248);
+    $mango = makeInventoryFor($this->branch, 'Jugo de Mango 1L', 112);
+
+    $component = Livewire::test(RegisterInventoryMovements::class)
+        ->fillForm([
+            'inventory_type' => RegisterInventoryMovements::TYPE_FINISHED,
+            'branch_id' => $this->branch->id,
+            'type' => TypeInventoryManagementEnum::ENTRADA->value,
+            'description' => 'Producción',
+        ]);
+
+    expect($component->instance()->suggestions()->pluck('id'))
+        ->toContain($naranja->id)
+        ->toContain($mango->id);
+
+    $component->call('addLine', $naranja->id);
+
+    expect($component->instance()->suggestions()->pluck('id'))
+        ->not->toContain($naranja->id)
+        ->toContain($mango->id);
+});
+
+it('filters the suggestions by the search term', function () {
+    makeInventoryFor($this->branch, 'Jugo de Naranja 500ml', 248);
+    $mango = makeInventoryFor($this->branch, 'Jugo de Mango 1L', 112);
+
+    $component = Livewire::test(RegisterInventoryMovements::class)
+        ->fillForm([
+            'inventory_type' => RegisterInventoryMovements::TYPE_FINISHED,
+            'branch_id' => $this->branch->id,
+            'type' => TypeInventoryManagementEnum::ENTRADA->value,
+            'description' => 'Producción',
+        ])
+        ->set('search', 'man');
+
+    $suggestions = $component->instance()->suggestions();
+
+    expect($suggestions)->toHaveCount(1)
+        ->and($suggestions->first()['id'])->toBe($mango->id);
+});
+
+it('adds the first suggestion when pressing enter in the search box', function () {
+    makeInventoryFor($this->branch, 'Jugo de Naranja 500ml', 248);
+    $mango = makeInventoryFor($this->branch, 'Jugo de Mango 1L', 112);
+
+    $component = Livewire::test(RegisterInventoryMovements::class)
+        ->fillForm([
+            'inventory_type' => RegisterInventoryMovements::TYPE_FINISHED,
+            'branch_id' => $this->branch->id,
+            'type' => TypeInventoryManagementEnum::ENTRADA->value,
+            'description' => 'Producción',
+        ])
+        ->set('search', 'man')
+        ->call('addFirstSuggestion');
+
+    expect($component->get('lines'))->toHaveCount(1)
+        ->and($component->get('lines')[0]['inventory_id'])->toBe($mango->id);
+
+    // Agregar limpia el buscador para encadenar el siguiente producto.
+    expect($component->get('search'))->toBe('');
+});
+
+it('removes a line from the batch', function () {
+    $naranja = makeInventoryFor($this->branch, 'Jugo de Naranja 500ml', 248);
+    $mango = makeInventoryFor($this->branch, 'Jugo de Mango 1L', 112);
+
+    $component = Livewire::test(RegisterInventoryMovements::class)
+        ->fillForm([
+            'inventory_type' => RegisterInventoryMovements::TYPE_FINISHED,
+            'branch_id' => $this->branch->id,
+            'type' => TypeInventoryManagementEnum::ENTRADA->value,
+            'description' => 'Producción',
+        ])
+        ->call('addLine', $naranja->id)
+        ->call('addLine', $mango->id)
+        ->call('removeLine', 0);
+
+    expect($component->get('lines'))->toHaveCount(1)
+        ->and($component->get('lines')[0]['inventory_id'])->toBe($mango->id);
+});
+
+it('changing branch clears the batch, because the ids belong to another branch', function () {
+    $naranja = makeInventoryFor($this->branch, 'Jugo de Naranja 500ml', 248);
+    $otherBranch = Branch::factory()->create();
+
+    $component = Livewire::test(RegisterInventoryMovements::class)
+        ->fillForm([
+            'inventory_type' => RegisterInventoryMovements::TYPE_FINISHED,
+            'branch_id' => $this->branch->id,
+            'type' => TypeInventoryManagementEnum::ENTRADA->value,
+            'description' => 'Producción',
+        ])
+        ->call('addLine', $naranja->id);
+
+    expect($component->get('lines'))->toHaveCount(1);
+
+    $component->fillForm(['branch_id' => $otherBranch->id]);
+
+    expect($component->get('lines'))->toBeEmpty();
+});
+
+it('rejects a line without a quantity', function () {
     $naranja = makeInventoryFor($this->branch, 'Jugo de Naranja 500ml', 248);
 
     Livewire::test(RegisterInventoryMovements::class)
@@ -175,15 +295,47 @@ it('rejects the same product twice in the batch', function () {
             'branch_id' => $this->branch->id,
             'type' => TypeInventoryManagementEnum::ENTRADA->value,
             'description' => 'Producción',
-            'lines' => [
-                ['inventory_id' => $naranja->id, 'quantity' => 10],
-                ['inventory_id' => $naranja->id, 'quantity' => 20],
-            ],
+        ])
+        ->set('lines', [
+            ['inventory_id' => $naranja->id, 'quantity' => null],
         ])
         ->call('register')
-        ->assertHasFormErrors();
+        ->assertHasErrors('lines.0.quantity');
 
+    expect(ManagementInventory::count())->toBe(0);
     expect((float) $naranja->fresh()->stock)->toBe(248.0);
+});
+
+it('rejects a line with a zero or negative quantity', function () {
+    $naranja = makeInventoryFor($this->branch, 'Jugo de Naranja 500ml', 248);
+
+    Livewire::test(RegisterInventoryMovements::class)
+        ->fillForm([
+            'inventory_type' => RegisterInventoryMovements::TYPE_FINISHED,
+            'branch_id' => $this->branch->id,
+            'type' => TypeInventoryManagementEnum::ENTRADA->value,
+            'description' => 'Producción',
+        ])
+        ->set('lines', [
+            ['inventory_id' => $naranja->id, 'quantity' => 0],
+        ])
+        ->call('register')
+        ->assertHasErrors('lines.0.quantity');
+
+    expect(ManagementInventory::count())->toBe(0);
+});
+
+it('does nothing when the batch has no products', function () {
+    Livewire::test(RegisterInventoryMovements::class)
+        ->fillForm([
+            'inventory_type' => RegisterInventoryMovements::TYPE_FINISHED,
+            'branch_id' => $this->branch->id,
+            'type' => TypeInventoryManagementEnum::ENTRADA->value,
+            'description' => 'Producción',
+        ])
+        ->set('lines', [])
+        ->call('register');
+
     expect(ManagementInventory::count())->toBe(0);
 });
 
@@ -196,9 +348,9 @@ it('requires a description for the batch', function () {
             'branch_id' => $this->branch->id,
             'type' => TypeInventoryManagementEnum::ENTRADA->value,
             'description' => '',
-            'lines' => [
+        ])
+        ->set('lines', [
                 ['inventory_id' => $naranja->id, 'quantity' => 10],
-            ],
         ])
         ->call('register')
         ->assertHasFormErrors(['description']);
@@ -215,9 +367,9 @@ it('keeps the batch header after a successful save so another batch can follow',
             'branch_id' => $this->branch->id,
             'type' => TypeInventoryManagementEnum::ENTRADA->value,
             'description' => 'Producción del 11/08/2026',
-            'lines' => [
+        ])
+        ->set('lines', [
                 ['inventory_id' => $naranja->id, 'quantity' => 10],
-            ],
         ])
         ->call('register')
         ->assertHasNoFormErrors()
@@ -226,6 +378,30 @@ it('keeps the batch header after a successful save so another batch can follow',
             'type' => TypeInventoryManagementEnum::ENTRADA->value,
             'description' => 'Producción del 11/08/2026',
         ]);
+});
+
+it('renders the batch UI: search box, lines table and running totals', function () {
+    $naranja = makeInventoryFor($this->branch, 'Jugo de Naranja 500ml', 248);
+
+    $component = Livewire::test(RegisterInventoryMovements::class)
+        ->fillForm([
+            'inventory_type' => RegisterInventoryMovements::TYPE_FINISHED,
+            'branch_id' => $this->branch->id,
+            'type' => TypeInventoryManagementEnum::ENTRADA->value,
+            'description' => 'Producción',
+        ])
+        ->call('addLine', $naranja->id)
+        ->set('lines.0.quantity', 25);
+
+    $component
+        // Buscador habilitado (con sucursal elegida ya no dice "elija sucursal").
+        ->assertSee('Escriba el nombre del producto')
+        // Tabla de líneas con la columna de existencia resultante.
+        ->assertSee('Queda en')
+        ->assertSee('Jugo de Naranja 500ml')
+        // Barra de totales y botón con el conteo.
+        ->assertSee('Unidades')
+        ->assertSee('Registrar 1 movimiento');
 });
 
 it('is hidden from users without inventory update permission', function () {

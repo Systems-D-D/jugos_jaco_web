@@ -38,6 +38,18 @@ class AdminPanelProvider extends PanelProvider
             ->colors([
                 'primary' => Color::Amber,
             ])
+            // Tema propio: habilita las utilidades de Tailwind del proyecto
+            // dentro del panel (sin esto, sólo existen las clases que Filament
+            // usa internamente en su CSS precompilado).
+            //
+            // Se sirve como CSS plano desde public/ —no por Vite— a propósito:
+            // /public/build está en .gitignore, así que un tema por Vite
+            // obligaría a correr `npm run build` en cada despliegue o el panel
+            // quedaría sin estilos. Este archivo se versiona ya compilado.
+            //
+            // Al agregar clases nuevas en app/Filament o resources/views/filament
+            // hay que recompilar: `npm run build:theme`.
+            ->theme(asset('css/filament/admin/theme.css'))
             ->navigationGroups([
                'Administración',
                'Clientes',
