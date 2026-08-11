@@ -6,6 +6,7 @@ use App\Enums\AccountReceivableStatusEnum;
 use App\Enums\SaleStatusEnum;
 use App\Enums\TypeInventoryManagementEnum;
 use App\Exceptions\SaleCancellationException;
+use App\Models\AccountReceivable;
 use App\Models\AssignedProduct;
 use App\Models\DailySalesReconciliation;
 use App\Models\DetailAssignedProduct;
@@ -59,14 +60,25 @@ class SaleCancellationService
                 return $sale;
             }
 
-            $this->assertCanBeCancelled($sale);
+            // Se bloquea aquí y se reutiliza la misma instancia para el
+            // chequeo de R5 y para cancelarla más abajo: sin esto, un pago
+            // concurrente podía colarse entre el "no tiene pagos" y el
+            // UPDATE a CANCELLED (PaymentService::processPayment nunca
+            // bloquea la fila), dejando una CxC anulada con un pago real
+            // adjunto. lockForUpdate aquí basta — cualquier UPDATE de otra
+            // transacción sobre la misma fila espera a que esta termine.
+            $accountReceivable = AccountReceivable::where('sales_id', $sale->id)
+                ->lockForUpdate()
+                ->first();
+
+            $this->assertCanBeCancelled($sale, $accountReceivable);
 
             $inventoryMovements = $this->fetchSaleInventoryMovements($sale);
 
             $this->revertAssignedProductMovements($sale);
             $this->revertAssignedProductSaleQuantity($sale, $inventoryMovements);
             $this->revertInventoryMovements($sale, $inventoryMovements);
-            $this->cancelAccountReceivableIfCredit($sale);
+            $this->cancelAccountReceivableIfCredit($accountReceivable);
 
             $sale->update([
                 'status' => SaleStatusEnum::CANCELLED,
@@ -79,7 +91,7 @@ class SaleCancellationService
         });
     }
 
-    private function assertCanBeCancelled(Sale $sale): void
+    private function assertCanBeCancelled(Sale $sale, ?AccountReceivable $accountReceivable): void
     {
         if ($sale->isInvoiced()) {
             throw new SaleCancellationException(
@@ -114,7 +126,6 @@ class SaleCancellationService
 
         // R5: cualquier pago registrado bloquea. cash_amount (abono inicial,
         // R6) NO se considera aquí a propósito: no genera fila en payments.
-        $accountReceivable = $sale->accountReceivable;
         if ($accountReceivable && $accountReceivable->payments()->exists()) {
             throw new SaleCancellationException(
                 'La venta tiene pagos registrados sobre su cuenta por cobrar; no se puede anular.',
@@ -268,12 +279,13 @@ class SaleCancellationService
 
     /**
      * R4: venta a crédito con cuenta por cobrar sin pagos (ya validado en
-     * assertCanBeCancelled) → se cancela la CxC. No se borra: queda como
-     * evidencia junto a la venta anulada.
+     * assertCanBeCancelled, contra esta misma instancia bloqueada) → se
+     * cancela la CxC. No se borra: queda como evidencia junto a la venta
+     * anulada.
      */
-    private function cancelAccountReceivableIfCredit(Sale $sale): void
+    private function cancelAccountReceivableIfCredit(?AccountReceivable $accountReceivable): void
     {
-        $sale->accountReceivable?->update([
+        $accountReceivable?->update([
             'status' => AccountReceivableStatusEnum::CANCELLED,
             'cancelled_at' => now(),
         ]);
