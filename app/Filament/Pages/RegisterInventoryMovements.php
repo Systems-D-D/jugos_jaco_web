@@ -140,21 +140,22 @@ class RegisterInventoryMovements extends Page implements HasForms
     public function suggestions(): Collection
     {
         $branchId = $this->data['branch_id'] ?? null;
+        $term = trim($this->search);
 
-        if (!$branchId) {
+        // Sin sucursal no hay de dónde sacar productos, y sin término de
+        // búsqueda no se lista nada: con decenas de productos, volcar el
+        // catálogo entero estorba más de lo que ayuda.
+        if (!$branchId || $term === '') {
             return collect();
         }
 
         $alreadyAdded = collect($this->lines)->pluck('inventory_id')->all();
-        $term = trim($this->search);
 
         return $this->availableInventories($branchId)
             ->reject(fn (array $item) => in_array($item['id'], $alreadyAdded))
-            ->when($term !== '', fn (Collection $items) => $items->filter(
-                fn (array $item) => str_contains(
-                    mb_strtolower($item['label']),
-                    mb_strtolower($term)
-                )
+            ->filter(fn (array $item) => str_contains(
+                mb_strtolower($item['label']),
+                mb_strtolower($term)
             ))
             ->take(8)
             ->values();
@@ -320,7 +321,16 @@ class RegisterInventoryMovements extends Page implements HasForms
             ->success()
             ->send();
 
-        // Se conservan sucursal, tipo y descripción para encadenar otro lote.
+        // Se conservan sucursal y tipo para encadenar otro lote, pero la
+        // descripción se limpia: es el motivo puntual de ESTE lote y
+        // arrastrarla al siguiente sólo lleva a describir mal el movimiento.
+        $this->form->fill([
+            'inventory_type' => $inventoryType,
+            'branch_id' => $data['branch_id'] ?? null,
+            'type' => $movementType,
+            'description' => null,
+        ]);
+
         $this->resetLines();
     }
 

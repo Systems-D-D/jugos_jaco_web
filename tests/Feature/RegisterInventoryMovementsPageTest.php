@@ -194,17 +194,43 @@ it('hides products already in the batch from the search suggestions', function (
             'branch_id' => $this->branch->id,
             'type' => TypeInventoryManagementEnum::ENTRADA->value,
             'description' => 'Producción',
-        ]);
+        ])
+        ->set('search', 'jugo');
 
     expect($component->instance()->suggestions()->pluck('id'))
         ->toContain($naranja->id)
         ->toContain($mango->id);
 
-    $component->call('addLine', $naranja->id);
+    $component->call('addLine', $naranja->id)
+        ->set('search', 'jugo');
 
     expect($component->instance()->suggestions()->pluck('id'))
         ->not->toContain($naranja->id)
         ->toContain($mango->id);
+});
+
+it('shows no suggestions until something is typed in the search box', function () {
+    // Volcar el catálogo entero al abrir la página estorba más de lo que
+    // ayuda: la lista sólo aparece cuando hay algo que buscar.
+    makeInventoryFor($this->branch, 'Jugo de Naranja 500ml', 248);
+    makeInventoryFor($this->branch, 'Jugo de Mango 1L', 112);
+
+    $component = Livewire::test(RegisterInventoryMovements::class)
+        ->fillForm([
+            'inventory_type' => RegisterInventoryMovements::TYPE_FINISHED,
+            'branch_id' => $this->branch->id,
+            'type' => TypeInventoryManagementEnum::ENTRADA->value,
+            'description' => 'Producción',
+        ]);
+
+    expect($component->instance()->suggestions())->toBeEmpty();
+
+    // Sólo espacios tampoco cuenta como búsqueda.
+    $component->set('search', '   ');
+    expect($component->instance()->suggestions())->toBeEmpty();
+
+    $component->set('search', 'jugo');
+    expect($component->instance()->suggestions())->toHaveCount(2);
 });
 
 it('filters the suggestions by the search term', function () {
@@ -358,10 +384,13 @@ it('requires a description for the batch', function () {
     expect(ManagementInventory::count())->toBe(0);
 });
 
-it('keeps the batch header after a successful save so another batch can follow', function () {
+it('keeps branch and type after a successful save, but clears the description', function () {
+    // La sucursal y el tipo suelen repetirse entre lotes; la descripción es
+    // el motivo puntual de ESTE lote y arrastrarla lleva a describir mal el
+    // siguiente movimiento.
     $naranja = makeInventoryFor($this->branch, 'Jugo de Naranja 500ml', 248);
 
-    Livewire::test(RegisterInventoryMovements::class)
+    $component = Livewire::test(RegisterInventoryMovements::class)
         ->fillForm([
             'inventory_type' => RegisterInventoryMovements::TYPE_FINISHED,
             'branch_id' => $this->branch->id,
@@ -374,10 +403,15 @@ it('keeps the batch header after a successful save so another batch can follow',
         ->call('register')
         ->assertHasNoFormErrors()
         ->assertFormSet([
+            'inventory_type' => RegisterInventoryMovements::TYPE_FINISHED,
             'branch_id' => $this->branch->id,
             'type' => TypeInventoryManagementEnum::ENTRADA->value,
-            'description' => 'Producción del 11/08/2026',
+            'description' => null,
         ]);
+
+    // Y el lote queda vacío, listo para el siguiente.
+    expect($component->get('lines'))->toBeEmpty();
+    expect($component->get('search'))->toBe('');
 });
 
 it('renders the batch UI: search box, lines table and running totals', function () {

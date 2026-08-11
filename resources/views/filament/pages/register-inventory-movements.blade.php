@@ -52,7 +52,7 @@
                             </li>
                         @endforeach
                     </ul>
-                @elseif ($branchChosen && filled($this->search))
+                @elseif ($branchChosen && filled(trim($this->search)))
                     <p class="mt-2 text-sm text-gray-500 dark:text-gray-400">
                         Ningún producto coincide con «{{ $this->search }}».
                     </p>
