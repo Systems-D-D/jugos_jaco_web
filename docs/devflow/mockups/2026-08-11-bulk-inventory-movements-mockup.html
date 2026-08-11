@@ -1,0 +1,950 @@
+<title>Movimientos de inventario — propuestas de UX</title>
+<style>
+  /* ── Tokens ─────────────────────────────────────────────────────────
+     Neutrales cálidos (stone) con sesgo hacia el ámbar del panel:
+     Filament está configurado con Color::Amber, así que el prototipo
+     hereda esa identidad en vez de inventar una nueva. */
+  :root {
+    --ground:      #faf9f7;
+    --surface:     #ffffff;
+    --surface-alt: #f5f4f1;
+    --line:        #e3e0da;
+    --line-soft:   #efedE8;
+    --ink:         #1c1917;
+    --ink-soft:    #57534e;
+    --ink-faint:   #8c857d;
+    --accent:      #b45309;
+    --accent-bg:   #fef3c7;
+    --accent-line: #f59e0b;
+
+    --entrada:     #15803d;
+    --entrada-bg:  #dcfce7;
+    --salida:      #b45309;
+    --salida-bg:   #fef3c7;
+    --danado:      #b91c1c;
+    --danado-bg:   #fee2e2;
+    --devolucion:  #1d4ed8;
+    --devolucion-bg:#dbeafe;
+
+    --shadow: 0 1px 2px rgba(28,25,23,.06), 0 4px 12px rgba(28,25,23,.05);
+
+    --serif: Georgia, "Iowan Old Style", "Times New Roman", serif;
+    --sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground:      #17150f;
+      --surface:     #221f19;
+      --surface-alt: #2b2721;
+      --line:        #3a352c;
+      --line-soft:   #302b24;
+      --ink:         #f5f2ec;
+      --ink-soft:    #b8b1a5;
+      --ink-faint:   #877f72;
+      --accent:      #fbbf24;
+      --accent-bg:   #3a2c0d;
+      --accent-line: #d97706;
+
+      --entrada:     #4ade80;
+      --entrada-bg:  #14301d;
+      --salida:      #fbbf24;
+      --salida-bg:   #3a2c0d;
+      --danado:      #f87171;
+      --danado-bg:   #3d1717;
+      --devolucion:  #60a5fa;
+      --devolucion-bg:#152a4a;
+
+      --shadow: 0 1px 2px rgba(0,0,0,.4), 0 4px 14px rgba(0,0,0,.3);
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --ground:      #17150f;
+    --surface:     #221f19;
+    --surface-alt: #2b2721;
+    --line:        #3a352c;
+    --line-soft:   #302b24;
+    --ink:         #f5f2ec;
+    --ink-soft:    #b8b1a5;
+    --ink-faint:   #877f72;
+    --accent:      #fbbf24;
+    --accent-bg:   #3a2c0d;
+    --accent-line: #d97706;
+
+    --entrada:     #4ade80;
+    --entrada-bg:  #14301d;
+    --salida:      #fbbf24;
+    --salida-bg:   #3a2c0d;
+    --danado:      #f87171;
+    --danado-bg:   #3d1717;
+    --devolucion:  #60a5fa;
+    --devolucion-bg:#152a4a;
+
+    --shadow: 0 1px 2px rgba(0,0,0,.4), 0 4px 14px rgba(0,0,0,.3);
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--ground);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 16px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* ── Chrome del documento ───────────────────────────────────────── */
+  .topbar {
+    position: sticky; top: 0; z-index: 20;
+    background: color-mix(in srgb, var(--ground) 88%, transparent);
+    backdrop-filter: blur(8px);
+    border-bottom: 1px solid var(--line);
+  }
+  .topbar-inner {
+    max-width: 1080px; margin: 0 auto; padding: 12px 28px;
+    display: flex; align-items: baseline; gap: 24px; flex-wrap: wrap;
+  }
+  .topbar strong {
+    font-family: var(--serif); font-size: 15px; font-weight: 600;
+    letter-spacing: -.01em;
+  }
+  .topbar nav { display: flex; gap: 18px; flex-wrap: wrap; }
+  .topbar a {
+    color: var(--ink-soft); text-decoration: none;
+    font-size: 13px; padding: 2px 0;
+    border-bottom: 1.5px solid transparent;
+  }
+  .topbar a:hover, .topbar a:focus-visible {
+    color: var(--accent); border-bottom-color: var(--accent-line);
+  }
+
+  main { max-width: 1080px; margin: 0 auto; padding: 0 28px 96px; }
+
+  /* ── Prosa: serif = mi análisis, sans = la UI propuesta ─────────── */
+  .prose { font-family: var(--serif); max-width: 68ch; }
+  .prose p { margin: 0 0 16px; color: var(--ink-soft); }
+  .prose strong { color: var(--ink); font-weight: 600; }
+
+  h1 {
+    font-family: var(--serif); font-size: 34px; line-height: 1.2;
+    letter-spacing: -.02em; margin: 56px 0 8px; text-wrap: balance;
+  }
+  .dek {
+    font-family: var(--serif); font-size: 19px; color: var(--ink-soft);
+    margin: 0 0 40px; max-width: 62ch; text-wrap: balance;
+  }
+  h2 {
+    font-family: var(--serif); font-size: 25px; letter-spacing: -.015em;
+    margin: 0 0 6px; text-wrap: balance;
+  }
+  h3 {
+    font-size: 13px; text-transform: uppercase; letter-spacing: .09em;
+    color: var(--ink-faint); font-weight: 600; margin: 0 0 14px;
+  }
+
+  section { padding-top: 56px; scroll-margin-top: 72px; }
+
+  .eyebrow {
+    display: inline-block; font-size: 12px; font-weight: 600;
+    letter-spacing: .1em; text-transform: uppercase;
+    color: var(--accent); margin-bottom: 10px;
+  }
+
+  hr {
+    border: 0; border-top: 1px solid var(--line);
+    margin: 0;
+  }
+
+  /* ── Mockup: marco que imita el panel Filament ──────────────────── */
+  .mock {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    box-shadow: var(--shadow);
+    overflow: hidden;
+    margin: 26px 0 20px;
+  }
+  .mock-chrome {
+    background: var(--surface-alt);
+    border-bottom: 1px solid var(--line);
+    padding: 9px 16px;
+    font-size: 12px; color: var(--ink-faint);
+    display: flex; align-items: center; gap: 8px;
+    font-family: var(--mono);
+  }
+  .mock-chrome .dot {
+    width: 9px; height: 9px; border-radius: 50%;
+    background: var(--line); flex: none;
+  }
+  .mock-body { padding: 20px; }
+
+  .page-title {
+    font-size: 21px; font-weight: 700; letter-spacing: -.01em;
+    margin: 0 0 3px;
+  }
+  .page-sub { font-size: 13px; color: var(--ink-faint); margin: 0 0 18px; }
+
+  /* ── Controles ──────────────────────────────────────────────────── */
+  .toolbar {
+    display: flex; gap: 10px; flex-wrap: wrap; align-items: center;
+    margin-bottom: 16px;
+  }
+  .field {
+    display: flex; flex-direction: column; gap: 5px;
+  }
+  .field label {
+    font-size: 11px; font-weight: 600; letter-spacing: .05em;
+    text-transform: uppercase; color: var(--ink-faint);
+  }
+  .input, .select {
+    font: inherit; font-size: 13.5px;
+    background: var(--surface); color: var(--ink);
+    border: 1px solid var(--line); border-radius: 8px;
+    padding: 7px 11px; min-width: 150px;
+  }
+  .select { appearance: none; padding-right: 30px;
+    background-image: linear-gradient(45deg, transparent 50%, var(--ink-faint) 50%),
+                      linear-gradient(135deg, var(--ink-faint) 50%, transparent 50%);
+    background-position: right 13px center, right 8px center;
+    background-size: 5px 5px, 5px 5px; background-repeat: no-repeat;
+  }
+  .input:focus-visible, .select:focus-visible {
+    outline: 2px solid var(--accent-line); outline-offset: 1px;
+  }
+  .input.qty { min-width: 78px; width: 78px; text-align: right;
+    font-family: var(--mono); font-variant-numeric: tabular-nums; }
+
+  .btn {
+    font: inherit; font-size: 13.5px; font-weight: 600;
+    border-radius: 8px; padding: 8px 15px; cursor: pointer;
+    border: 1px solid transparent; display: inline-flex;
+    align-items: center; gap: 7px; line-height: 1.2;
+  }
+  .btn-primary { background: var(--accent-line); color: #1c1917; }
+  .btn-primary:hover { filter: brightness(1.07); }
+  .btn-ghost {
+    background: var(--surface); color: var(--ink-soft);
+    border-color: var(--line);
+  }
+  .btn-ghost:hover { border-color: var(--ink-faint); color: var(--ink); }
+  .btn-sm { font-size: 12.5px; padding: 5px 10px; }
+  .btn:focus-visible { outline: 2px solid var(--accent-line); outline-offset: 2px; }
+
+  /* ── Tablas ─────────────────────────────────────────────────────── */
+  .table-wrap { overflow-x: auto; border-radius: 9px; border: 1px solid var(--line); }
+  table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+  thead th {
+    background: var(--surface-alt); text-align: left;
+    font-size: 11px; letter-spacing: .06em; text-transform: uppercase;
+    color: var(--ink-faint); font-weight: 600;
+    padding: 9px 13px; white-space: nowrap;
+    border-bottom: 1px solid var(--line);
+  }
+  tbody td {
+    padding: 10px 13px; border-bottom: 1px solid var(--line-soft);
+    vertical-align: middle;
+  }
+  tbody tr:last-child td { border-bottom: 0; }
+  tbody tr.selected { background: var(--accent-bg); }
+  .num { font-family: var(--mono); font-variant-numeric: tabular-nums; text-align: right; }
+  .prod { font-weight: 600; }
+  .muted { color: var(--ink-faint); font-size: 12.5px; }
+
+  input[type="checkbox"] {
+    width: 15px; height: 15px; accent-color: var(--accent-line);
+    cursor: pointer; margin: 0;
+  }
+
+  /* ── Badges ─────────────────────────────────────────────────────── */
+  .badge {
+    display: inline-block; font-size: 11.5px; font-weight: 600;
+    padding: 2px 9px; border-radius: 20px; white-space: nowrap;
+  }
+  .b-entrada    { background: var(--entrada-bg);    color: var(--entrada); }
+  .b-salida     { background: var(--salida-bg);     color: var(--salida); }
+  .b-danado     { background: var(--danado-bg);     color: var(--danado); }
+  .b-devolucion { background: var(--devolucion-bg); color: var(--devolucion); }
+  .b-low        { background: var(--danado-bg);     color: var(--danado); }
+
+  /* ── Modal simulado ─────────────────────────────────────────────── */
+  .modal-scrim {
+    background: var(--surface-alt);
+    border-top: 1px solid var(--line);
+    padding: 24px;
+  }
+  .modal {
+    background: var(--surface); border: 1px solid var(--line);
+    border-radius: 12px; box-shadow: var(--shadow);
+    max-width: 560px; margin: 0 auto; overflow: hidden;
+  }
+  .modal.wide { max-width: 720px; }
+  .modal-head { padding: 17px 20px 0; }
+  .modal-head h4 {
+    margin: 0 0 3px; font-size: 16.5px; font-weight: 700;
+    letter-spacing: -.01em;
+  }
+  .modal-head p { margin: 0; font-size: 13px; color: var(--ink-faint); }
+  .modal-body { padding: 17px 20px; display: grid; gap: 13px; }
+  .modal-foot {
+    padding: 13px 20px; border-top: 1px solid var(--line);
+    background: var(--surface-alt);
+    display: flex; justify-content: flex-end; gap: 9px; align-items: center;
+  }
+  .modal-foot .spacer { margin-right: auto; font-size: 12.5px; color: var(--ink-faint); }
+
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 13px; }
+  @media (max-width: 620px) { .grid-2 { grid-template-columns: 1fr; } }
+
+  /* ── Callouts y listas de balance ───────────────────────────────── */
+  .balance {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 0;
+    border: 1px solid var(--line); border-radius: 10px;
+    overflow: hidden; margin-top: 20px;
+  }
+  @media (max-width: 620px) { .balance { grid-template-columns: 1fr; } }
+  .balance > div { padding: 15px 18px; }
+  .balance > div:first-child { border-right: 1px solid var(--line); }
+  @media (max-width: 620px) {
+    .balance > div:first-child { border-right: 0; border-bottom: 1px solid var(--line); }
+  }
+  .balance ul { margin: 0; padding-left: 17px; }
+  .balance li { font-size: 14px; color: var(--ink-soft); margin-bottom: 6px; }
+  .balance li:last-child { margin-bottom: 0; }
+  .balance h3 { margin-bottom: 10px; }
+  .pro h3 { color: var(--entrada); }
+  .con h3 { color: var(--danado); }
+
+  .note {
+    border-left: 3px solid var(--accent-line);
+    background: var(--accent-bg);
+    padding: 14px 18px; border-radius: 0 8px 8px 0;
+    margin: 22px 0;
+  }
+  .note p { margin: 0; font-size: 14.5px; color: var(--ink); }
+  .note p + p { margin-top: 9px; }
+
+  code {
+    font-family: var(--mono); font-size: .89em;
+    background: var(--surface-alt); border: 1px solid var(--line-soft);
+    padding: 1px 5px; border-radius: 4px; color: var(--ink);
+  }
+
+  .verdict {
+    display: inline-flex; align-items: center; gap: 8px;
+    font-size: 12px; font-weight: 700; letter-spacing: .07em;
+    text-transform: uppercase; padding: 4px 12px; border-radius: 20px;
+    margin-bottom: 12px;
+  }
+  .v-yes { background: var(--entrada-bg); color: var(--entrada); }
+  .v-maybe { background: var(--salida-bg); color: var(--salida); }
+
+  .steps {
+    counter-reset: s; list-style: none; padding: 0; margin: 18px 0 0;
+    display: grid; gap: 10px;
+  }
+  .steps li {
+    counter-increment: s; position: relative; padding-left: 34px;
+    font-size: 14.5px; color: var(--ink-soft);
+  }
+  .steps li::before {
+    content: counter(s); position: absolute; left: 0; top: 1px;
+    width: 22px; height: 22px; border-radius: 50%;
+    background: var(--surface-alt); border: 1px solid var(--line);
+    color: var(--ink-faint); font-family: var(--mono); font-size: 11.5px;
+    display: grid; place-items: center; font-weight: 600;
+  }
+  .steps.now li::before { border-color: var(--danado); color: var(--danado); }
+  .steps.after li::before { border-color: var(--entrada); color: var(--entrada); }
+
+  .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 32px; margin-top: 8px; }
+  @media (max-width: 760px) { .cols { grid-template-columns: 1fr; gap: 24px; } }
+
+  .search-row {
+    display: flex; gap: 9px; align-items: center;
+    padding: 11px 13px; border: 1px dashed var(--line);
+    border-radius: 9px; background: var(--surface-alt);
+    margin-bottom: 14px;
+  }
+  .search-row .input { flex: 1; min-width: 0; background: var(--surface); }
+
+  .suggest {
+    border: 1px solid var(--line); border-radius: 9px;
+    margin: -8px 0 14px; overflow: hidden; background: var(--surface);
+    box-shadow: var(--shadow);
+  }
+  .suggest div {
+    padding: 9px 13px; font-size: 13.5px;
+    border-bottom: 1px solid var(--line-soft);
+    display: flex; justify-content: space-between; gap: 12px;
+  }
+  .suggest div:last-child { border-bottom: 0; }
+  .suggest div:first-child { background: var(--accent-bg); }
+
+  .totals {
+    display: flex; gap: 26px; flex-wrap: wrap;
+    padding: 13px 16px; background: var(--surface-alt);
+    border: 1px solid var(--line); border-radius: 9px; margin-top: 14px;
+  }
+  .totals div { display: flex; flex-direction: column; gap: 1px; }
+  .totals dt {
+    font-size: 11px; text-transform: uppercase; letter-spacing: .06em;
+    color: var(--ink-faint); font-weight: 600;
+  }
+  .totals dd {
+    margin: 0; font-family: var(--mono); font-size: 17px; font-weight: 700;
+    font-variant-numeric: tabular-nums;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { transition: none !important; animation: none !important; }
+  }
+</style>
+
+<div class="topbar">
+  <div class="topbar-inner">
+    <strong>Movimientos de inventario</strong>
+    <nav>
+      <a href="#problema">El problema</a>
+      <a href="#servicio">Reúso del servicio</a>
+      <a href="#a">A · Acción rápida</a>
+      <a href="#b">B · Selección masiva</a>
+      <a href="#c">C · Página de carga</a>
+      <a href="#recomendacion">Recomendación</a>
+    </nav>
+  </div>
+</div>
+
+<main>
+
+  <h1>Registrar movimientos de inventario sin dar tantas vueltas</h1>
+  <p class="dek">
+    Tres formas de resolverlo, de la más barata a la más completa. Los tres prototipos
+    salen del mismo servicio que ya existe.
+  </p>
+
+  <div class="note" style="margin-top:0">
+    <p>
+      <strong>Decidido: se implementaron A y C.</strong> B quedó descartada porque la
+      selección masiva depende de poder filtrar la tabla hasta dejar en pantalla justo lo
+      que se quiere, y los nombres de producto no comparten un patrón que lo permita.
+      A resuelve el movimiento suelto; C resuelve la carga masiva.
+    </p>
+  </div>
+
+  <!-- ══ PROBLEMA ══════════════════════════════════════════════════ -->
+  <section id="problema">
+    <span class="eyebrow">Punto de partida</span>
+    <h2>Hoy son seis pasos por producto</h2>
+
+    <div class="cols">
+      <div>
+        <h3>Flujo actual</h3>
+        <ol class="steps now">
+          <li>Entrar a «Inventario de productos terminados»</li>
+          <li>Buscar el producto en la tabla</li>
+          <li>Abrir el registro (Ver o Editar)</li>
+          <li>Bajar hasta la pestaña «Movimientos de inventario»</li>
+          <li>Clic en «Registrar movimiento»</li>
+          <li>Llenar tipo, cantidad y descripción</li>
+        </ol>
+        <p class="prose" style="margin-top:16px">
+          Para registrar la producción del día en <strong>quince productos</strong>,
+          ese ciclo se repite quince veces — con quince navegaciones de ida y vuelta.
+        </p>
+      </div>
+      <div>
+        <h3>Lo que queremos</h3>
+        <ol class="steps after">
+          <li>Filtrar la tabla por sucursal (o buscar)</li>
+          <li>Marcar los productos del lote</li>
+          <li>Elegir tipo y descripción una sola vez</li>
+          <li>Escribir la cantidad de cada uno</li>
+          <li>Registrar los quince de un solo golpe</li>
+        </ol>
+        <p class="prose" style="margin-top:16px">
+          Y que para <strong>un solo producto</strong> tampoco haga falta salir de la lista.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══ SERVICIO ══════════════════════════════════════════════════ -->
+  <section id="servicio">
+    <span class="eyebrow">Antes de diseñar</span>
+    <h2>El servicio ya sirve tal como está</h2>
+
+    <div class="prose">
+      <p>
+        Revisé <code>ManagementInventoryService::processMovement()</code> pensando en qué
+        habría que cambiarle para soportar carga masiva. La respuesta corta:
+        <strong>nada</strong>.
+      </p>
+      <p>
+        El método recibe cualquier modelo que tenga la relación <code>movements()</code>, así
+        que funciona igual para inventario de producto terminado que para materia prima.
+        Ya valida que la cantidad sea mayor a cero, ya bloquea las salidas sin existencia
+        suficiente con un <code>WHERE stock &gt;= cantidad</code> atómico, y ya deja el asiento
+        en el kardex con su autor. Desde el trabajo de anulación de ventas también acepta
+        <code>referenceId</code> y <code>referenceType</code>.
+      </p>
+      <p>
+        Entonces «registro masivo» es literalmente un <code>foreach</code> sobre
+        <code>processMovement()</code> dentro de una transacción. Cada llamada abre su propia
+        transacción, pero en Laravel las anidadas funcionan como <em>savepoints</em>: la
+        externa sigue mandando. Ya verificamos ese comportamiento en la anulación de ventas.
+      </p>
+    </div>
+
+    <div class="note">
+      <p><strong>La única decisión de fondo: ¿todo o nada?</strong></p>
+      <p>
+        Si el producto #8 de 15 no tiene existencia suficiente, el servicio lanza excepción.
+        Propongo que <strong>se caiga el lote completo</strong> y no se registre ninguno, con
+        el mensaje diciendo qué producto falló. Es el criterio que ya usa el resto del sistema,
+        y evita el limbo de «se registraron 7 de 15» donde nadie sabe cuáles.
+      </p>
+    </div>
+  </section>
+
+  <hr>
+
+  <!-- ══ OPCIÓN A ══════════════════════════════════════════════════ -->
+  <section id="a">
+    <span class="eyebrow">Opción A</span>
+    <h2>Acción rápida desde la fila</h2>
+    <p class="prose">
+      Un botón en cada fila de la tabla de inventario que abre el formulario directo, sin
+      entrar al producto. No resuelve lo masivo — resuelve que el caso de un solo producto,
+      que es el más frecuente, deje de costar seis pasos.
+    </p>
+
+    <div class="mock">
+      <div class="mock-chrome"><span class="dot"></span> Inventario de productos terminados</div>
+      <div class="mock-body">
+        <p class="page-title">Inventario de productos terminados</p>
+        <p class="page-sub">Sucursal: Tegucigalpa · 24 productos</p>
+
+        <div class="toolbar">
+          <input class="input" type="search" placeholder="Buscar producto…" aria-label="Buscar producto" value="">
+          <select class="select" aria-label="Sucursal"><option>Todas las sucursales</option></select>
+        </div>
+
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Producto</th>
+                <th>Sucursal</th>
+                <th class="num">Existencia</th>
+                <th class="num">Mínima</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="prod">Jugo de Naranja 500ml</td>
+                <td class="muted">Tegucigalpa</td>
+                <td class="num">248</td>
+                <td class="num muted">50</td>
+                <td style="text-align:right; white-space:nowrap">
+                  <button class="btn btn-primary btn-sm">Movimiento</button>
+                  <button class="btn btn-ghost btn-sm">Ver</button>
+                </td>
+              </tr>
+              <tr>
+                <td class="prod">Jugo de Piña 500ml</td>
+                <td class="muted">Tegucigalpa</td>
+                <td class="num">36 <span class="badge b-low">bajo</span></td>
+                <td class="num muted">50</td>
+                <td style="text-align:right; white-space:nowrap">
+                  <button class="btn btn-primary btn-sm">Movimiento</button>
+                  <button class="btn btn-ghost btn-sm">Ver</button>
+                </td>
+              </tr>
+              <tr>
+                <td class="prod">Jugo de Mango 1L</td>
+                <td class="muted">Tegucigalpa</td>
+                <td class="num">112</td>
+                <td class="num muted">40</td>
+                <td style="text-align:right; white-space:nowrap">
+                  <button class="btn btn-primary btn-sm">Movimiento</button>
+                  <button class="btn btn-ghost btn-sm">Ver</button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="modal-scrim">
+        <div class="modal">
+          <div class="modal-head">
+            <h4>Registrar movimiento</h4>
+            <p>Jugo de Piña 500ml · Tegucigalpa · existencia actual 36</p>
+          </div>
+          <div class="modal-body">
+            <div class="grid-2">
+              <div class="field">
+                <label for="a-tipo">Tipo</label>
+                <select class="select" id="a-tipo">
+                  <option>Entrada</option><option>Salida</option>
+                  <option>Dañado</option><option>Devolución</option>
+                </select>
+              </div>
+              <div class="field">
+                <label for="a-cant">Cantidad</label>
+                <input class="input" id="a-cant" type="text" inputmode="decimal" value="120">
+              </div>
+            </div>
+            <div class="field">
+              <label for="a-desc">Descripción</label>
+              <input class="input" id="a-desc" type="text" value="Producción del 11/08/2026">
+            </div>
+          </div>
+          <div class="modal-foot">
+            <span class="spacer">Queda en 156</span>
+            <button class="btn btn-ghost">Cancelar</button>
+            <button class="btn btn-primary">Registrar</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="balance">
+      <div class="pro">
+        <h3>A favor</h3>
+        <ul>
+          <li>Es el cambio más chico de los tres: una acción de tabla, nada más.</li>
+          <li>Reutiliza la tabla, sus filtros y su buscador tal como están.</li>
+          <li>Muestra la existencia actual y la resultante antes de confirmar.</li>
+        </ul>
+      </div>
+      <div class="con">
+        <h3>En contra</h3>
+        <ul>
+          <li>Sigue siendo un producto a la vez: no resuelve el pedido de fondo.</li>
+          <li>Para quince productos son quince modales.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <hr>
+
+  <!-- ══ OPCIÓN B ══════════════════════════════════════════════════ -->
+  <section id="b">
+    <span class="eyebrow">Opción B</span>
+    <h2>Selección masiva sobre la tabla</h2>
+    <p class="prose">
+      Las casillas que Filament ya trae en la tabla, más una acción masiva. Se marcan los
+      productos, se elige el tipo y la descripción una sola vez, y el modal pide la cantidad
+      de cada uno. La selección sobrevive al cambio de página y respeta los filtros activos.
+    </p>
+
+    <div class="mock">
+      <div class="mock-chrome"><span class="dot"></span> Inventario de productos terminados</div>
+      <div class="mock-body">
+        <div class="toolbar">
+          <input class="input" type="search" placeholder="Buscar producto…" aria-label="Buscar producto" value="jugo">
+          <select class="select" aria-label="Sucursal"><option>Tegucigalpa</option></select>
+          <span style="flex:1"></span>
+          <button class="btn btn-primary btn-sm">Registrar movimiento · 3</button>
+        </div>
+
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th style="width:36px"><input type="checkbox" checked aria-label="Seleccionar todo"></th>
+                <th>Producto</th>
+                <th class="num">Existencia</th>
+                <th class="num">Mínima</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr class="selected">
+                <td><input type="checkbox" checked aria-label="Seleccionar Jugo de Naranja"></td>
+                <td class="prod">Jugo de Naranja 500ml</td>
+                <td class="num">248</td><td class="num muted">50</td>
+              </tr>
+              <tr class="selected">
+                <td><input type="checkbox" checked aria-label="Seleccionar Jugo de Piña"></td>
+                <td class="prod">Jugo de Piña 500ml</td>
+                <td class="num">36 <span class="badge b-low">bajo</span></td><td class="num muted">50</td>
+              </tr>
+              <tr class="selected">
+                <td><input type="checkbox" checked aria-label="Seleccionar Jugo de Mango"></td>
+                <td class="prod">Jugo de Mango 1L</td>
+                <td class="num">112</td><td class="num muted">40</td>
+              </tr>
+              <tr>
+                <td><input type="checkbox" aria-label="Seleccionar Néctar de Durazno"></td>
+                <td class="prod">Néctar de Durazno 250ml</td>
+                <td class="num">89</td><td class="num muted">30</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="modal-scrim">
+        <div class="modal wide">
+          <div class="modal-head">
+            <h4>Registrar movimiento en 3 productos</h4>
+            <p>El tipo y la descripción se aplican a todo el lote.</p>
+          </div>
+          <div class="modal-body">
+            <div class="grid-2">
+              <div class="field">
+                <label for="b-tipo">Tipo</label>
+                <select class="select" id="b-tipo">
+                  <option>Entrada</option><option>Salida</option>
+                  <option>Dañado</option><option>Devolución</option>
+                </select>
+              </div>
+              <div class="field">
+                <label for="b-desc">Descripción</label>
+                <input class="input" id="b-desc" type="text" value="Producción del 11/08/2026">
+              </div>
+            </div>
+
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Producto</th>
+                    <th class="num">Actual</th>
+                    <th class="num">Cantidad</th>
+                    <th class="num">Queda en</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td class="prod">Jugo de Naranja 500ml</td>
+                    <td class="num muted">248</td>
+                    <td class="num"><input class="input qty" type="text" inputmode="decimal" value="200" aria-label="Cantidad Naranja"></td>
+                    <td class="num" style="color:var(--entrada); font-weight:600">448</td>
+                  </tr>
+                  <tr>
+                    <td class="prod">Jugo de Piña 500ml</td>
+                    <td class="num muted">36</td>
+                    <td class="num"><input class="input qty" type="text" inputmode="decimal" value="120" aria-label="Cantidad Piña"></td>
+                    <td class="num" style="color:var(--entrada); font-weight:600">156</td>
+                  </tr>
+                  <tr>
+                    <td class="prod">Jugo de Mango 1L</td>
+                    <td class="num muted">112</td>
+                    <td class="num"><input class="input qty" type="text" inputmode="decimal" value="80" aria-label="Cantidad Mango"></td>
+                    <td class="num" style="color:var(--entrada); font-weight:600">192</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+          <div class="modal-foot">
+            <span class="spacer">400 unidades en 3 movimientos</span>
+            <button class="btn btn-ghost">Cancelar</button>
+            <button class="btn btn-primary">Registrar los 3</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="balance">
+      <div class="pro">
+        <h3>A favor</h3>
+        <ul>
+          <li>Cero pantallas nuevas: vive en la tabla que ya se usa todos los días.</li>
+          <li>Hereda los filtros de sucursal y producto y el buscador.</li>
+          <li>La columna «Queda en» deja ver el resultado antes de confirmar.</li>
+        </ul>
+      </div>
+      <div class="con">
+        <h3>En contra</h3>
+        <ul>
+          <li>Hay que encontrar y marcar cada producto en la tabla primero.</li>
+          <li>Con veinte o más seleccionados el modal se vuelve largo.</li>
+          <li>Un solo tipo por lote: mezclar entradas y dañados son dos pasadas.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <hr>
+
+  <!-- ══ OPCIÓN C ══════════════════════════════════════════════════ -->
+  <section id="c">
+    <span class="eyebrow">Opción C</span>
+    <h2>Página de carga, estilo punto de venta</h2>
+    <p class="prose">
+      Una pantalla dedicada donde se arma el lote escribiendo. Se busca el producto, se elige
+      de la lista, se teclea la cantidad y se sigue con el siguiente — sin tocar el mouse.
+      Es el mismo gesto de armar un carrito de venta, que el equipo ya conoce.
+    </p>
+
+    <div class="mock">
+      <div class="mock-chrome"><span class="dot"></span> Inventario › Registro de movimientos</div>
+      <div class="mock-body">
+        <p class="page-title">Registro de movimientos</p>
+        <p class="page-sub">Cargue varios productos y regístrelos de una sola vez.</p>
+
+        <div class="toolbar">
+          <div class="field">
+            <label for="c-inv">Inventario</label>
+            <select class="select" id="c-inv">
+              <option>Producto terminado</option><option>Materia prima</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="c-suc">Sucursal</label>
+            <select class="select" id="c-suc"><option>Tegucigalpa</option></select>
+          </div>
+          <div class="field">
+            <label for="c-tipo">Tipo</label>
+            <select class="select" id="c-tipo">
+              <option>Entrada</option><option>Salida</option>
+              <option>Dañado</option><option>Devolución</option>
+            </select>
+          </div>
+          <div class="field" style="flex:1; min-width:220px">
+            <label for="c-desc">Descripción</label>
+            <input class="input" id="c-desc" type="text" style="width:100%" value="Producción del 11/08/2026">
+          </div>
+        </div>
+
+        <div class="search-row">
+          <input class="input" type="search" placeholder="Escriba el nombre o código del producto…" aria-label="Buscar producto para agregar" value="man">
+          <button class="btn btn-ghost btn-sm">Agregar</button>
+        </div>
+
+        <div class="suggest">
+          <div><span><strong>Jugo de Mango 1L</strong> <span class="muted">· JM-1000</span></span><span class="muted num">112 en existencia</span></div>
+          <div><span>Jugo de Manzana 500ml <span class="muted">· JMZ-500</span></span><span class="muted num">64 en existencia</span></div>
+          <div><span>Néctar de Mango 250ml <span class="muted">· NM-250</span></span><span class="muted num">203 en existencia</span></div>
+        </div>
+
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Producto</th>
+                <th class="num">Actual</th>
+                <th class="num">Cantidad</th>
+                <th class="num">Queda en</th>
+                <th style="width:44px"></th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="prod">Jugo de Naranja 500ml</td>
+                <td class="num muted">248</td>
+                <td class="num"><input class="input qty" type="text" inputmode="decimal" value="200" aria-label="Cantidad Naranja"></td>
+                <td class="num" style="color:var(--entrada); font-weight:600">448</td>
+                <td style="text-align:center"><button class="btn btn-ghost btn-sm" aria-label="Quitar Jugo de Naranja">✕</button></td>
+              </tr>
+              <tr>
+                <td class="prod">Jugo de Piña 500ml</td>
+                <td class="num muted">36</td>
+                <td class="num"><input class="input qty" type="text" inputmode="decimal" value="120" aria-label="Cantidad Piña"></td>
+                <td class="num" style="color:var(--entrada); font-weight:600">156</td>
+                <td style="text-align:center"><button class="btn btn-ghost btn-sm" aria-label="Quitar Jugo de Piña">✕</button></td>
+              </tr>
+              <tr>
+                <td class="prod">Jugo de Mango 1L</td>
+                <td class="num muted">112</td>
+                <td class="num"><input class="input qty" type="text" inputmode="decimal" value="80" aria-label="Cantidad Mango"></td>
+                <td class="num" style="color:var(--entrada); font-weight:600">192</td>
+                <td style="text-align:center"><button class="btn btn-ghost btn-sm" aria-label="Quitar Jugo de Mango">✕</button></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="totals">
+          <div><dt>Productos</dt><dd>3</dd></div>
+          <div><dt>Unidades</dt><dd>400</dd></div>
+          <div><dt>Tipo</dt><dd style="font-size:14px"><span class="badge b-entrada">Entrada</span></dd></div>
+          <div style="margin-left:auto; align-self:center">
+            <button class="btn btn-primary">Registrar 3 movimientos</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="balance">
+      <div class="pro">
+        <h3>A favor</h3>
+        <ul>
+          <li>El flujo más rápido para cargar muchos productos: todo con el teclado.</li>
+          <li>No depende de la paginación ni de encontrar filas en la tabla.</li>
+          <li>Un solo lugar para producto terminado y materia prima.</li>
+          <li>Se le puede sumar guardado de borrador o repetir el lote de ayer.</li>
+        </ul>
+      </div>
+      <div class="con">
+        <h3>En contra</h3>
+        <ul>
+          <li>Es una pantalla nueva: más código y más que mantener.</li>
+          <li>Duplica el buscador que la tabla de inventario ya ofrece.</li>
+          <li>Un elemento más en el menú de navegación.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <hr>
+
+  <!-- ══ RECOMENDACIÓN ═════════════════════════════════════════════ -->
+  <section id="recomendacion">
+    <span class="eyebrow">Lo que se construyó</span>
+    <h2>A + C, y por qué se descartó B</h2>
+
+    <div class="cols">
+      <div>
+        <div class="verdict v-yes">Implementado</div>
+        <div class="prose">
+          <p>
+            <strong>A</strong> vive en <code>RegisterInventoryMovementAction</code>, una acción
+            de fila compartida por las dos tablas de inventario. <strong>C</strong> es la página
+            <code>RegisterInventoryMovements</code>, en el grupo Inventario del menú.
+          </p>
+          <p>
+            Ninguna de las dos toca <code>ManagementInventoryService</code>: las dos lo llaman
+            tal como estaba.
+          </p>
+        </div>
+      </div>
+      <div>
+        <div class="verdict v-maybe">Descartado</div>
+        <div class="prose">
+          <p>
+            <strong>B dependía de un supuesto que no se sostiene:</strong> que se puede filtrar
+            la tabla hasta dejar en pantalla justo los productos del lote. Los nombres no
+            comparten un patrón que lo permita, así que marcar veinte productos seguiría siendo
+            una cacería fila por fila.
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <div class="note">
+      <p><strong>Cómo quedó resuelto el tema de las unidades.</strong></p>
+      <p>
+        La materia prima se mide en su propia unidad (libra, fardo) y el producto terminado en
+        piezas. Las dos pantallas muestran la unidad junto a la cantidad y la existencia
+        resultante, y en la página de carga masiva el selector de producto ya incluye la
+        existencia actual en el texto de cada opción — así nadie carga 200 «libras» creyendo
+        que son cajas.
+      </p>
+      <p>
+        La página además <strong>impide repetir el mismo producto en dos líneas</strong> del
+        mismo lote: se sumarían por separado y el usuario no lo vería venir.
+      </p>
+    </div>
+  </section>
+
+</main>

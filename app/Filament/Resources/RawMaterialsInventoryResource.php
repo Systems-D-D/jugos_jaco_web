@@ -3,6 +3,7 @@
 namespace App\Filament\Resources;
 
 use App\Enums\UnitTypeEnum;
+use App\Filament\Actions\RegisterInventoryMovementAction;
 use App\Filament\Resources\ManagementInventoryResource\RelationManagers\MovementsInventoryRelationManager;
 use App\Filament\Resources\RawMaterialsInventoryResource\Pages;
 use App\Models\RawMaterialsInventory;
@@ -74,6 +75,7 @@ class RawMaterialsInventoryResource extends Resource
                 //
             ])
             ->actions([
+                RegisterInventoryMovementAction::make(),
                 Tables\Actions\ViewAction::make(),
                 Tables\Actions\EditAction::make(),
             ])
