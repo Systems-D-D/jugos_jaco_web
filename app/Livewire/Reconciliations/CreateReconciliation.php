@@ -146,7 +146,7 @@ class CreateReconciliation extends Component
         if ($this->employee_id) {
             // Verificar si existe un cuadre para la fecha seleccionada y está completado
             $selectedDate = Carbon::parse($this->reconciliation_date);
-            $existing = DailySalesReconciliation::getForEmployeeAndDate($this->employee_id, $selectedDate);
+            $existing = DailySalesReconciliation::getForEmployeeAndDate($this->employee_id, $selectedDate->toDateString());
 
             if ($existing && $existing->status === ReconciliationStatusEnum::COMPLETED) {
                 session()->flash('warning', 'El empleado seleccionado ya tiene un cuadre completado para la fecha seleccionada.');
@@ -164,7 +164,7 @@ class CreateReconciliation extends Component
         if ($this->employee_id && $this->reconciliation_date) {
             // Verificar si existe un cuadre para la nueva fecha seleccionada
             $selectedDate = Carbon::parse($this->reconciliation_date);
-            $existing = DailySalesReconciliation::getForEmployeeAndDate($this->employee_id, $selectedDate);
+            $existing = DailySalesReconciliation::getForEmployeeAndDate($this->employee_id, $selectedDate->toDateString());
 
             if ($existing && $existing->status === ReconciliationStatusEnum::COMPLETED) {
                 session()->flash('warning', 'El empleado seleccionado ya tiene un cuadre completado para la fecha seleccionada.');
@@ -186,7 +186,7 @@ class CreateReconciliation extends Component
         $selectedDate = Carbon::parse($this->reconciliation_date);
 
         // Verificar si ya existe un cuadre para la fecha seleccionada
-        $existing = DailySalesReconciliation::getForEmployeeAndDate($this->employee_id, $selectedDate);
+        $existing = DailySalesReconciliation::getForEmployeeAndDate($this->employee_id, $selectedDate->toDateString());
 
         if ($existing) {
             $this->current_reconciliation = $existing;
@@ -199,10 +199,17 @@ class CreateReconciliation extends Component
 
             // Cargar el efectivo recibido si existe
             $this->cash_received = $existing->total_cash_received;
-
-            $this->loadDeposits();
-            $this->loadBills();
+        } else {
+            // Sin cuadre para este empleado y fecha hay que soltar el anterior:
+            // si se conserva, las devoluciones, depósitos y facturas del cuadre
+            // previo siguen en pantalla como si fueran de esta selección.
+            $this->current_reconciliation = null;
+            $this->reconciliation_created = false;
+            $this->cash_received = 0.0;
         }
+
+        $this->loadDeposits();
+        $this->loadBills();
 
         // Load sales for the selected date and employee
         $this->sales = Sale::with(['client'])
@@ -809,30 +816,34 @@ class CreateReconciliation extends Component
 
     public function loadReturns(): void
     {
-        // Si tenemos un cuadre específico, cargar devoluciones por reconciliation_id para mayor precisión
-        if ($this->current_reconciliation) {
-            $this->returns = ProductReturn::with('product')
-                ->where('reconciliation_id', $this->current_reconciliation->id)
-                ->get()
-                ->map(function ($return) {
-                    return [
-                        'id' => $return->id,
-                        'product_name' => $return->product->name,
-                        'quantity' => $return->quantity,
-                        'type' => $return->type->getLabel(),
-                        'reason' => $return->reason,
-                        'affects_inventory' => $return->affects_inventory ? 'Sí' : 'No',
-                        'created_at' => $return->created_at->format('H:i:s'),
-                    ];
-                })->toArray();
-            return;
-        }
-
-        // Fallback: si no hay cuadre, usar employee_id y fecha como antes
-        if (!$this->employee_id || !$this->reconciliation_date) {
+        // Las devoluciones siempre nacen junto a un cuadre (el formulario manual
+        // y el sobrante de la asignación crean primero el cuadre pendiente), así
+        // que sin cuadre no hay nada que mostrar. Antes esta rama no asignaba
+        // nada y dejaba en pantalla las devoluciones de la selección anterior.
+        if (!$this->current_reconciliation || !$this->employee_id) {
             $this->returns = [];
             return;
         }
+
+        $this->returns = ProductReturn::with('product')
+            ->where('reconciliation_id', $this->current_reconciliation->id)
+            // Además del cuadre se filtra por empleado: si un reconciliation_id
+            // quedara mal asignado, la devolución de otro vendedor no debe
+            // aparecer —ni sumar— en este cuadre.
+            ->where('employee_id', $this->employee_id)
+            ->orderByDesc('created_at')
+            ->get()
+            ->map(function ($return) {
+                return [
+                    'id' => $return->id,
+                    'product_name' => $return->product->name,
+                    'quantity' => $return->quantity,
+                    'type' => $return->type->getLabel(),
+                    'reason' => $return->reason,
+                    'affects_inventory' => $return->affects_inventory ? 'Sí' : 'No',
+                    'created_at' => $return->created_at->format('H:i:s'),
+                ];
+            })->toArray();
     }
 
     public function loadMovements(): void
