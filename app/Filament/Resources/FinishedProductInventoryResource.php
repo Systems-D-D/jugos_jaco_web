@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources;
 
+use App\Filament\Actions\RegisterInventoryMovementAction;
 use App\Filament\Resources\FinishedProductInventoryResource\Pages;
 use App\Filament\Resources\ManagementInventoryResource\RelationManagers\MovementsInventoryRelationManager;
 use App\Models\FinishedProductInventory;
@@ -126,6 +127,7 @@ class FinishedProductInventoryResource extends Resource
                     ->label('Producto'),
             ])
             ->actions([
+                RegisterInventoryMovementAction::make(),
                 Tables\Actions\ViewAction::make(),
                 Tables\Actions\EditAction::make(),
             ])

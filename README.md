@@ -80,6 +80,27 @@ php artisan queue:work &
 npm run dev
 ```
 
+## Tema del panel administrativo
+
+El panel de Filament usa un tema propio para que las utilidades de Tailwind del
+proyecto estén disponibles dentro del panel. Sin él, sólo existen las clases que
+Filament trae en su CSS precompilado.
+
+El tema **se sirve como CSS plano desde `public/`, no por Vite**, y el archivo
+compilado **se versiona en git**. Es a propósito: `/public/build` está en
+`.gitignore`, así que un tema por Vite obligaría a correr `npm run build` en cada
+despliegue o el panel quedaría sin estilos.
+
+```bash
+npm run build:theme   # compila public/css/filament/admin/theme.css
+npm run dev:theme     # lo recompila al vuelo mientras se desarrolla
+```
+
+> **Al agregar clases de Tailwind nuevas** en `app/Filament/**` o en
+> `resources/views/filament/**`, hay que correr `npm run build:theme` y commitear
+> el CSS resultante. Tailwind sólo genera las clases que encuentra en esos
+> archivos: si no se recompila, los estilos nuevos no aparecen en producción.
+
 ## Estructura del Proyecto
 
 ```
