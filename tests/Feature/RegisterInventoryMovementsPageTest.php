@@ -446,3 +446,21 @@ it('is hidden from users without inventory update permission', function () {
     expect(RegisterInventoryMovements::canAccess())->toBeFalse();
     expect(RegisterInventoryMovements::shouldRegisterNavigation())->toBeFalse();
 });
+
+it('is accessible to cashiers through their inventory create permissions', function () {
+    $employee = Employee::factory()->create();
+    $cashier = User::factory()->create(['employee_id' => $employee->id]);
+
+    $permissions = [
+        PermissionConstants::FINISHED_PRODUCT_INVENTORY_CREATE,
+        PermissionConstants::RAW_MATERIALS_INVENTORY_CREATE,
+    ];
+    foreach ($permissions as $permission) {
+        Permission::findOrCreate($permission, 'web');
+    }
+    $cashier->givePermissionTo($permissions);
+    Auth::login($cashier);
+
+    expect(RegisterInventoryMovements::canAccess())->toBeTrue();
+    expect(RegisterInventoryMovements::shouldRegisterNavigation())->toBeTrue();
+});

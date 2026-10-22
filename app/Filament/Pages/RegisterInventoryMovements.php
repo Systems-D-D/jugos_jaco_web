@@ -66,10 +66,14 @@ class RegisterInventoryMovements extends Page implements HasForms
     {
         $user = Auth::user();
 
+        // *.create deja entrar al cajero, que registra entradas y salidas
+        // pero no tiene *.update (eso le abriría la edición del inventario).
         return $user
             && $user->hasAnyPermission([
                 PermissionConstants::FINISHED_PRODUCT_INVENTORY_UPDATE,
                 PermissionConstants::RAW_MATERIALS_INVENTORY_UPDATE,
+                PermissionConstants::FINISHED_PRODUCT_INVENTORY_CREATE,
+                PermissionConstants::RAW_MATERIALS_INVENTORY_CREATE,
             ]);
     }
 
