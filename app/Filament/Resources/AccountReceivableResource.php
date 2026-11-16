@@ -53,7 +53,16 @@ class AccountReceivableResource extends Resource
                                     })
                                     ->searchable()
                                     ->preload()
-                                    ->getOptionLabelFromRecordUsing(fn (Sale $record): string => "#{$record->id} - {$record->client?->full_name} L.". number_format($record->total_amount - $record->cash_amount, 2))
+                                    ->getOptionLabelFromRecordUsing(fn (Sale $record): string => static::saleOptionLabel($record))
+                                    // Debe ir después de relationship(), que define su propia búsqueda solo por invoice_number.
+                                    ->getSearchResultsUsing(fn (string $search): array => Sale::query()
+                                        ->with('client')
+                                        ->where('payment_term', PaymentTermEnum::CREDIT)
+                                        ->searchByClient($search)
+                                        ->limit(50)
+                                        ->get()
+                                        ->mapWithKeys(fn (Sale $sale): array => [$sale->id => static::saleOptionLabel($sale)])
+                                        ->all())
                                     ->afterStateUpdated(function ($state, Forms\Set $set) {
                                         if ($state) {
                                             $sale = Sale::find($state);
@@ -61,7 +70,7 @@ class AccountReceivableResource extends Resource
                                                 $pendingAmount = $sale->total_amount - $sale->cash_amount;
                                                 $set('total_amount', $pendingAmount);
                                                 $set('remaining_balance', $pendingAmount);
-                                                $set('name', $sale->client->full_name);
+                                                $set('name', $sale->client_display_name);
                                             }
                                         }
                                     })
@@ -70,7 +79,7 @@ class AccountReceivableResource extends Resource
                                 Forms\Components\TextInput::make('name')
                                     ->label('Nombre')
                                     ->required()
-                                    ->maxLength(100),
+                                    ->maxLength(160),
 
                                 Forms\Components\TextInput::make('total_amount')
                                     ->label('Monto Total')
@@ -229,6 +238,14 @@ class AccountReceivableResource extends Resource
                 ]),
             ])
             ->defaultSort('created_at', 'desc');
+    }
+
+    /**
+     * Etiqueta del selector de venta: "#ID - Negocio (Cliente) L.Saldo".
+     */
+    public static function saleOptionLabel(Sale $sale): string
+    {
+        return "#{$sale->id} - {$sale->client_display_name} L." . number_format($sale->total_amount - $sale->cash_amount, 2);
     }
 
     public static function getRelations(): array

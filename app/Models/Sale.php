@@ -176,6 +176,34 @@ class Sale extends Model
         return $query->whereBetween('sale_date', [$startDate, $endDate]);
     }
 
+    /**
+     * Busca por número de factura/ID de la venta, nombre del negocio o nombre
+     * del cliente. Cada palabra del término debe coincidir con alguno de esos
+     * campos, así "María López" encuentra a first_name=María, last_name=López.
+     */
+    public function scopeSearchByClient($query, string $search)
+    {
+        $terms = preg_split('/\s+/', trim($search), -1, PREG_SPLIT_NO_EMPTY);
+
+        foreach ($terms as $term) {
+            $like = '%' . $term . '%';
+
+            $query->where(function ($query) use ($term, $like) {
+                $id = ltrim($term, '#');
+
+                $query->where('invoice_number', 'like', $like)
+                    ->when(ctype_digit($id), fn ($query) => $query->orWhere('id', (int) $id))
+                    ->orWhereHas('client', function ($query) use ($like) {
+                        $query->where('business_name', 'like', $like)
+                            ->orWhere('first_name', 'like', $like)
+                            ->orWhere('last_name', 'like', $like);
+                    });
+            });
+        }
+
+        return $query;
+    }
+
     public function isDraft(): bool
     {
         return $this->status === SaleStatusEnum::DRAFT;
@@ -220,6 +248,23 @@ class Sale extends Model
         $formattedNumber = str_pad($this->invoice_number, strlen($maskFormat), '0', STR_PAD_LEFT);
         
         return $prefix . $formattedNumber;
+    }
+
+    /**
+     * Nombre del negocio con el cliente entre paréntesis: "Negocio (Cliente)".
+     * Sin nombre de negocio, devuelve solo el nombre del cliente.
+     */
+    public function getClientDisplayNameAttribute(): ?string
+    {
+        if (!$this->client) {
+            return null;
+        }
+
+        $fullName = trim($this->client->full_name);
+
+        return filled($this->client->business_name)
+            ? "{$this->client->business_name} ({$fullName})"
+            : $fullName;
     }
 
     /**
