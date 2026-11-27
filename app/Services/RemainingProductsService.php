@@ -11,6 +11,7 @@ use App\Models\DetailAssignedProduct;
 use App\Models\Employee;
 use App\Models\ProductReturn;
 use App\Models\User;
+use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
@@ -219,13 +220,20 @@ class RemainingProductsService
      */
     private function lockOpenReconciliation(int $employeeId, string $date, User $user): DailySalesReconciliation
     {
-        $reconciliation = DailySalesReconciliation::where('employee_id', $employeeId)
-            ->whereDate('reconciliation_date', $date)
-            ->lockForUpdate()
-            ->first();
+        $reconciliation = $this->lockExistingReconciliation($employeeId, $date);
 
         if (!$reconciliation) {
-            $reconciliation = $this->createPendingReconciliation($employeeId, $date, $user);
+            try {
+                $reconciliation = $this->createPendingReconciliation($employeeId, $date, $user);
+            } catch (QueryException $e) {
+                // Otro proceso creó el cuadre entre nuestra lectura y el insert:
+                // el índice único lo impidió; usamos el que ganó.
+                if ($e->getCode() !== '23000') {
+                    throw $e;
+                }
+
+                $reconciliation = $this->lockExistingReconciliation($employeeId, $date) ?? throw $e;
+            }
         }
 
         if ($reconciliation->status === ReconciliationStatusEnum::COMPLETED) {
@@ -233,6 +241,14 @@ class RemainingProductsService
         }
 
         return $reconciliation;
+    }
+
+    private function lockExistingReconciliation(int $employeeId, string $date): ?DailySalesReconciliation
+    {
+        return DailySalesReconciliation::where('employee_id', $employeeId)
+            ->whereDate('reconciliation_date', $date)
+            ->lockForUpdate()
+            ->first();
     }
 
     private function createPendingReconciliation(int $employeeId, string $date, User $user): DailySalesReconciliation

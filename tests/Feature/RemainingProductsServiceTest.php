@@ -359,3 +359,56 @@ it('keeps the return when the inventory reversal fails', function () {
     expect(ProductReturn::count())->toBe(1)
         ->and((float) $s->detail->fresh()->returned_quantity)->toBe(5.0);
 });
+
+/**
+ * Simula la carrera: justo antes de que el servicio inserte el cuadre
+ * pendiente, otro proceso inserta el suyo para el mismo empleado y fecha.
+ */
+function rpsInsertCompetingReconciliationBeforeCreate(object $s, ReconciliationStatusEnum $status): void
+{
+    $fired = false;
+
+    DailySalesReconciliation::creating(function () use (&$fired, $s, $status) {
+        if ($fired) {
+            return;
+        }
+        $fired = true;
+
+        DB::table('daily_sales_reconciliations')->insert([
+            'employee_id' => $s->employee->id,
+            'cashier_id' => User::factory()->create()->id,
+            'branch_id' => $s->branch->id,
+            // Mismo formato que el cast 'date' de Eloquent: en SQLite el índice
+            // único compara texto (en MySQL la columna es DATE).
+            'reconciliation_date' => \Illuminate\Support\Carbon::parse($s->date)->startOfDay(),
+            'total_cash_sales' => 0, 'cash_sales' => 0, 'total_credit_sales' => 0, 'deposit_sales' => 0,
+            'total_sales' => 0, 'total_cash_received' => 0, 'total_deposits' => 0, 'total_collections' => 0,
+            'cash_collections' => 0, 'deposit_collections' => 0, 'total_cash_expected' => 0,
+            'total_deposit_expected' => 0, 'cash_difference' => 0, 'deposit_difference' => 0,
+            'status' => $status->value, 'product_shortage_total' => 0,
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+    });
+}
+
+// 🔁 S16 — el segundo en llegar reusa el cuadre del primero
+it('reuses the reconciliation created concurrently by another process', function () {
+    $s = rpsScenario();
+    rpsInsertCompetingReconciliationBeforeCreate($s, ReconciliationStatusEnum::PENDING);
+
+    $return = rpsCount($s, 5);
+
+    $reconciliation = DailySalesReconciliation::sole();
+    expect($return->reconciliation_id)->toBe($reconciliation->id)
+        ->and($reconciliation->cashier_id)->not->toBe($s->cashier->id)
+        ->and((float) $s->detail->fresh()->returned_quantity)->toBe(5.0);
+});
+
+// ❌ Si el cuadre que ganó la carrera ya está cerrado, se rechaza
+it('refuses the count if the concurrently created reconciliation is completed', function () {
+    $s = rpsScenario();
+    rpsInsertCompetingReconciliationBeforeCreate($s, ReconciliationStatusEnum::COMPLETED);
+
+    expect(fn () => rpsCount($s, 5))->toThrow(RemainingProductCountException::class, 'El cuadre ya fue cerrado');
+    expect(ProductReturn::count())->toBe(0);
+});
