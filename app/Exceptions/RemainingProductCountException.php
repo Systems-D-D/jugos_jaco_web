@@ -23,7 +23,7 @@ class RemainingProductCountException extends Exception
 
     public static function invalidQuantity(float $max): self
     {
-        return new self('La cantidad debe estar entre 0 y ' . self::formatQuantity($max) . '.', 422);
+        return new self('La cantidad debe estar entre 0 y '.self::formatQuantity($max).'.', 422);
     }
 
     public static function cannotUndoBelowZero(): self

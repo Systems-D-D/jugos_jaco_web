@@ -17,23 +17,25 @@ class ProductReturnService
      */
     public function registerInventoryMovement(ProductReturn $productReturn): void
     {
-        if (!$productReturn->affects_inventory) {
+        if (! $productReturn->affects_inventory) {
             Log::info('Devolución creada sin afectar inventario', [
                 'product_return_id' => $productReturn->id,
                 'affects_inventory' => false,
             ]);
+
             return;
         }
 
         try {
             $inventory = $this->findInventory($productReturn);
 
-            if (!$inventory) {
+            if (! $inventory) {
                 Log::error('No se encontró el inventario del producto para la devolución', [
                     'product_return_id' => $productReturn->id,
                     'product_id' => $productReturn->product_id,
                     'branch_id' => $productReturn->employee->branch_id,
                 ]);
+
                 return;
             }
 
@@ -46,7 +48,7 @@ class ProductReturnService
                 $productReturn->reason
             );
 
-            (new ManagementInventoryService())->processMovement(
+            (new ManagementInventoryService)->processMovement(
                 model: $inventory,
                 quantity: $quantity,
                 type: $movementType->value,
@@ -81,23 +83,25 @@ class ProductReturnService
      */
     public function reverseInventoryMovement(ProductReturn $productReturn, bool $strict = false): void
     {
-        if (!$productReturn->affects_inventory) {
+        if (! $productReturn->affects_inventory) {
             Log::info('Devolución eliminada sin revertir inventario', [
                 'product_return_id' => $productReturn->id,
                 'affects_inventory' => false,
             ]);
+
             return;
         }
 
         try {
             $inventory = $this->findInventory($productReturn);
 
-            if (!$inventory) {
+            if (! $inventory) {
                 Log::error('No se encontró inventario para revertir el movimiento', [
                     'product_id' => $productReturn->product_id,
                     'branch_id' => $productReturn->employee->branch_id,
                     'product_return_id' => $productReturn->id,
                 ]);
+
                 return;
             }
 
@@ -105,7 +109,7 @@ class ProductReturnService
 
             $description = "Reversión de devolución #{$productReturn->id} - {$productReturn->type->getLabel()} - {$productReturn->product->name}";
 
-            (new ManagementInventoryService())->processMovement(
+            (new ManagementInventoryService)->processMovement(
                 $inventory,
                 $quantity,
                 $movementType->value,
@@ -157,10 +161,10 @@ class ProductReturnService
             ProductReturnTypeEnum::DAMAGED => $positive ? TypeInventoryManagementEnum::DANADO : TypeInventoryManagementEnum::ENTRADA,
         };
 
-        $type = !$reverse ? $forward : match ($forward) {
+        $type = ! $reverse ? $forward : match ($forward) {
             TypeInventoryManagementEnum::ENTRADA => TypeInventoryManagementEnum::SALIDA,
             TypeInventoryManagementEnum::SALIDA, TypeInventoryManagementEnum::DANADO => TypeInventoryManagementEnum::ENTRADA,
-            default => throw new \LogicException('Movimiento de devolución no soportado: ' . $forward->value),
+            default => throw new \LogicException('Movimiento de devolución no soportado: '.$forward->value),
         };
 
         return [$type, abs($quantity)];

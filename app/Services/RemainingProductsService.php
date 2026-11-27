@@ -26,11 +26,10 @@ use Illuminate\Support\Facades\Log;
 class RemainingProductsService
 {
     public const REASON_COUNT = 'Conteo de sobrantes';
+
     public const REASON_CORRECTION = 'Corrección de conteo de sobrantes';
 
-    public function __construct(private ProductReturnService $productReturnService)
-    {
-    }
+    public function __construct(private ProductReturnService $productReturnService) {}
 
     /**
      * Filas de la asignación del empleado en la fecha, sin montos.
@@ -44,7 +43,7 @@ class RemainingProductsService
             ->assignmentsDate($date)
             ->first();
 
-        if (!$assignment) {
+        if (! $assignment) {
             return [];
         }
 
@@ -103,6 +102,7 @@ class RemainingProductsService
      * conteo (returned_quantity = 0). Todo o nada.
      *
      * @return int cantidad de detalles procesados
+     *
      * @throws RemainingProductCountException
      */
     public function returnAllRemaining(int $employeeId, string $date, User $countedBy): int
@@ -111,8 +111,8 @@ class RemainingProductsService
             $reconciliation = $this->lockOpenReconciliation($employeeId, $date, $countedBy);
 
             $details = DetailAssignedProduct::whereHas('assignedProduct', fn ($query) => $query
-                    ->where('employee_id', $employeeId)
-                    ->whereDate('date', $date))
+                ->where('employee_id', $employeeId)
+                ->whereDate('date', $date))
                 ->orderBy('id')
                 ->lockForUpdate()
                 ->get();
@@ -222,7 +222,7 @@ class RemainingProductsService
     {
         $reconciliation = $this->lockExistingReconciliation($employeeId, $date);
 
-        if (!$reconciliation) {
+        if (! $reconciliation) {
             try {
                 $reconciliation = $this->createPendingReconciliation($employeeId, $date, $user);
             } catch (QueryException $e) {
@@ -287,7 +287,7 @@ class RemainingProductsService
             ->lockForUpdate()
             ->first();
 
-        if (!$detail) {
+        if (! $detail) {
             throw RemainingProductCountException::detailNotInAssignment();
         }
 

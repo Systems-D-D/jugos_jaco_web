@@ -23,10 +23,15 @@ use Livewire\Attributes\Url;
 class RemainingProductsCount extends Page
 {
     protected static ?string $navigationIcon = 'heroicon-o-clipboard-document-check';
+
     protected static ?string $navigationGroup = 'Ventas';
+
     protected static ?string $navigationLabel = 'Conteo de sobrantes';
+
     protected static ?string $title = 'Conteo de sobrantes';
+
     protected static ?string $slug = 'remaining-products-count';
+
     protected static string $view = 'filament.pages.remaining-products-count';
 
     #[Url(as: 'employee')]
@@ -84,8 +89,9 @@ class RemainingProductsCount extends Page
 
         $value = $this->counts[$detailId] ?? null;
 
-        if (!is_numeric($value)) {
+        if (! is_numeric($value)) {
             $this->notifyError('Ingrese una cantidad válida.');
+
             return;
         }
 
@@ -102,7 +108,7 @@ class RemainingProductsCount extends Page
 
             Notification::make()
                 ->title($return
-                    ? 'Conteo guardado: ' . ($row['product_name'] ?? 'producto') . ' → ' . (float) $value
+                    ? 'Conteo guardado: '.($row['product_name'] ?? 'producto').' → '.(float) $value
                     : 'Sin cambios')
                 ->success()
                 ->send();
@@ -118,7 +124,7 @@ class RemainingProductsCount extends Page
             ->modalHeading('¿Devolver todo lo sobrante?')
             ->modalDescription('Se registrarán como devueltos los productos con sobrante que aún no tienen conteo. Los productos ya contados no cambian.')
             ->modalSubmitActionLabel('Sí, devolver todo')
-            ->visible(fn () => filled($this->employee_id) && !$this->closed && !empty($this->rows))
+            ->visible(fn () => filled($this->employee_id) && ! $this->closed && ! empty($this->rows))
             ->action(fn () => $this->returnAll());
     }
 
@@ -140,10 +146,11 @@ class RemainingProductsCount extends Page
 
     private function loadRows(): void
     {
-        if (!filled($this->employee_id) || !$this->date) {
+        if (! filled($this->employee_id) || ! $this->date) {
             $this->rows = [];
             $this->counts = [];
             $this->closed = false;
+
             return;
         }
 
@@ -190,7 +197,7 @@ class RemainingProductsCount extends Page
 
     private function normalizeDate(?string $value): ?string
     {
-        if (!$value) {
+        if (! $value) {
             return null;
         }
 

@@ -26,7 +26,7 @@ beforeEach(function () {
         'stock' => 100,
         'min_stock' => 10,
     ]);
-    $this->service = new ProductReturnService();
+    $this->service = new ProductReturnService;
 });
 
 function prsqReturn(object $t, float $quantity, ProductReturnTypeEnum $type = ProductReturnTypeEnum::RETURNED): ProductReturn
