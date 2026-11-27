@@ -15,6 +15,9 @@ use App\Models\User;
 use App\Services\RemainingProductsService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
+use App\Constants\PermissionConstants;
+use App\Filament\Resources\DailySalesReconciliationResource\Pages\ListDailySalesReconciliations;
+use Spatie\Permission\Models\Permission;
 
 uses(RefreshDatabase::class);
 
@@ -169,4 +172,42 @@ it('refuses to delete a return that belongs to another reconciliation', function
         ->assertSee('La devolución no pertenece a este cuadre.');
 
     expect(ProductReturn::find($foreign->id))->not->toBeNull();
+});
+
+// ✅ S27 / DoD-7 — "Editar" lleva empleado y fecha
+it('links the edit action of a pending reconciliation to its own date', function () {
+    $s = rpstScenario();
+    foreach (PermissionConstants::getCrudPermissions(PermissionConstants::MODEL_DAILY_SALES_RECONCILIATION) as $permission) {
+        Permission::findOrCreate($permission, 'web');
+        $s->user->givePermissionTo($permission);
+    }
+    $this->actingAs($s->user);
+    $reconciliation = rpstPending($s, ['reconciliation_date' => '2026-11-20']);
+
+    Livewire::test(ListDailySalesReconciliations::class)
+        ->assertTableActionHasUrl('edit_pending', route('filament.admin.resources.daily-sales-reconciliations.create', [
+            'employee_id' => $s->employee->id,
+            'reconciliation_date' => '2026-11-20',
+        ]), record: $reconciliation);
+});
+
+// ✅ La página de creación pasa la fecha al componente
+it('passes the reconciliation date from the query string to the component', function () {
+    // El middleware Authenticate de Filament rechaza a usuarios sin FilamentUser
+    // fuera de APP_ENV=local; se simula local para que el resultado dependa
+    // solo de canAccess() de la página.
+    config(['app.env' => 'local']);
+    // Página completa: el menú evalúa las políticas de todos los recursos.
+    $this->seed(\Database\Seeders\RoleSeeder::class);
+    $s = rpstScenario();
+    foreach (PermissionConstants::getCrudPermissions(PermissionConstants::MODEL_DAILY_SALES_RECONCILIATION) as $permission) {
+        Permission::findOrCreate($permission, 'web');
+        $s->user->givePermissionTo($permission);
+    }
+    $this->actingAs($s->user);
+
+    $this->get(route('filament.admin.resources.daily-sales-reconciliations.create', [
+        'employee_id' => $s->employee->id,
+        'reconciliation_date' => '2026-11-20',
+    ]))->assertOk()->assertSee('2026-11-20');
 });
