@@ -11,6 +11,8 @@ class ProductReturn extends Model
     protected $fillable = [
         'product_id',
         'employee_id',
+        'counted_by',
+        'detail_assigned_product_id',
         'reconciliation_id',
         'quantity',
         'type',
@@ -43,5 +45,17 @@ class ProductReturn extends Model
     public function reconciliation(): BelongsTo
     {
         return $this->belongsTo(DailySalesReconciliation::class);
+    }
+
+    /** Usuario que registró el conteo (null en devoluciones manuales o anteriores). */
+    public function countedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'counted_by');
+    }
+
+    /** Detalle de asignación cuyo returned_quantity ajustó esta devolución. */
+    public function detailAssignedProduct(): BelongsTo
+    {
+        return $this->belongsTo(DetailAssignedProduct::class);
     }
 }
