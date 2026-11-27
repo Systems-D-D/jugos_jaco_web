@@ -97,6 +97,99 @@ class RemainingProductsService
         });
     }
 
+    /**
+     * Marca como devuelto todo el sobrante de los detalles que aún no tienen
+     * conteo (returned_quantity = 0). Todo o nada.
+     *
+     * @return int cantidad de detalles procesados
+     * @throws RemainingProductCountException
+     */
+    public function returnAllRemaining(int $employeeId, string $date, User $countedBy): int
+    {
+        return DB::transaction(function () use ($employeeId, $date, $countedBy) {
+            $reconciliation = $this->lockOpenReconciliation($employeeId, $date, $countedBy);
+
+            $details = DetailAssignedProduct::whereHas('assignedProduct', fn ($query) => $query
+                    ->where('employee_id', $employeeId)
+                    ->whereDate('date', $date))
+                ->orderBy('id')
+                ->lockForUpdate()
+                ->get();
+
+            $processed = 0;
+
+            foreach ($details as $detail) {
+                if ((float) $detail->returned_quantity != 0.0) {
+                    continue; // ya contado: no se sobrescribe
+                }
+
+                $remaining = self::maxReturnable($detail);
+
+                if ($remaining <= 0) {
+                    continue;
+                }
+
+                $this->applyCount($reconciliation, $detail, $employeeId, $remaining, $countedBy);
+                $processed++;
+            }
+
+            return $processed;
+        });
+    }
+
+    /**
+     * Borra una devolución revirtiendo su movimiento de inventario y, si vino
+     * del conteo de sobrantes, el ajuste de returned_quantity del detalle.
+     *
+     * @throws RemainingProductCountException
+     */
+    public function deleteReturn(ProductReturn $productReturn): void
+    {
+        DB::transaction(function () use ($productReturn) {
+            $locked = ProductReturn::whereKey($productReturn->id)->lockForUpdate()->firstOrFail();
+
+            if ($locked->reconciliation_id) {
+                $reconciliation = DailySalesReconciliation::whereKey($locked->reconciliation_id)->lockForUpdate()->first();
+
+                if ($reconciliation?->status === ReconciliationStatusEnum::COMPLETED) {
+                    throw RemainingProductCountException::reconciliationClosed();
+                }
+            }
+
+            if ($locked->detail_assigned_product_id) {
+                $detail = DetailAssignedProduct::whereKey($locked->detail_assigned_product_id)->lockForUpdate()->first();
+
+                if ($detail) {
+                    $newReturned = round((float) $detail->returned_quantity - (float) $locked->quantity, 2);
+
+                    if ($newReturned < 0) {
+                        throw RemainingProductCountException::cannotUndoBelowZero();
+                    }
+
+                    $max = self::maxReturnable($detail);
+                    if ($newReturned > $max) {
+                        throw RemainingProductCountException::invalidQuantity($max);
+                    }
+
+                    $detail->update(['returned_quantity' => $newReturned]);
+                }
+            }
+
+            try {
+                $this->productReturnService->reverseInventoryMovement($locked, strict: true);
+            } catch (\Throwable $e) {
+                Log::error('Conteo de sobrantes: falló la reversión de inventario al borrar', [
+                    'product_return_id' => $locked->id,
+                    'error' => $e->getMessage(),
+                ]);
+
+                throw RemainingProductCountException::inventoryFailed($e);
+            }
+
+            $locked->delete();
+        });
+    }
+
     private function toRow(DetailAssignedProduct $detail): array
     {
         $assigned = (float) $detail->quantity;

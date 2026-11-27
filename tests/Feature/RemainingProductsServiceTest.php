@@ -240,3 +240,122 @@ it('returns no rows when the employee has no assignment on the date', function (
 
     expect($s->service->listForEmployee($s->employee->id, now()->addDay()->toDateString()))->toBe([]);
 });
+
+// ✅ returnAll procesa solo los detalles sin conteo
+it('returns all remaining stock only for details without a count', function () {
+    $s = rpsScenario();
+    $second = DetailAssignedProduct::factory()->create([
+        'assigned_products_id' => $s->assignment->id,
+        'product_id' => Product::factory()->create(['is_active' => true])->id,
+        'quantity' => 10, 'sale_quantity' => 4, 'changes_quantity' => 0, 'royalties_quantity' => 0,
+        'returned_quantity' => 2, // ya contado
+    ]);
+    FinishedProductInventory::create(['product_id' => $second->product_id, 'branch_id' => $s->branch->id, 'stock' => 50, 'min_stock' => 1]);
+
+    $processed = $s->service->returnAllRemaining($s->employee->id, $s->date, $s->cashier);
+
+    expect($processed)->toBe(1)
+        ->and((float) $s->detail->fresh()->returned_quantity)->toBe(7.0)
+        ->and((float) $second->fresh()->returned_quantity)->toBe(2.0)
+        ->and(ProductReturn::sole()->counted_by)->toBe($s->cashier->id);
+});
+
+// ❌ S18 — todo o nada
+it('rolls back the whole batch when one detail fails', function () {
+    $s = rpsScenario();
+    $second = DetailAssignedProduct::factory()->create([
+        'assigned_products_id' => $s->assignment->id,
+        'product_id' => Product::factory()->create(['is_active' => true])->id,
+        'quantity' => 10, 'sale_quantity' => 4,
+    ]);
+    // Se fuerza el fallo del movimiento de inventario solo para la segunda fila.
+    $this->mock(\App\Services\ProductReturnService::class, function ($mock) use ($second) {
+        $mock->shouldReceive('registerInventoryMovement')->andReturnUsing(function (ProductReturn $r) use ($second) {
+            if ($r->product_id === $second->product_id) {
+                throw new \RuntimeException('No hay suficiente stock disponible.');
+            }
+        });
+    });
+
+    expect(fn () => app(RemainingProductsService::class)->returnAllRemaining($s->employee->id, $s->date, $s->cashier))
+        ->toThrow(RemainingProductCountException::class);
+    expect(ProductReturn::count())->toBe(0)
+        ->and((float) $s->detail->fresh()->returned_quantity)->toBe(0.0);
+});
+
+// ❌ S12 — returnAll y deleteReturn respetan el cuadre cerrado
+it('refuses returnAll on a completed reconciliation', function () {
+    $s = rpsScenario();
+    DailySalesReconciliation::factory()->create([
+        'employee_id' => $s->employee->id, 'branch_id' => $s->branch->id,
+        'reconciliation_date' => $s->date, 'status' => ReconciliationStatusEnum::COMPLETED,
+    ]);
+
+    expect(fn () => $s->service->returnAllRemaining($s->employee->id, $s->date, $s->cashier))
+        ->toThrow(RemainingProductCountException::class, 'El cuadre ya fue cerrado');
+});
+
+it('refuses to delete a return of a completed reconciliation', function () {
+    $s = rpsScenario();
+    $return = rpsCount($s, 5);
+    DailySalesReconciliation::sole()->update(['status' => ReconciliationStatusEnum::COMPLETED]);
+
+    expect(fn () => $s->service->deleteReturn($return))->toThrow(RemainingProductCountException::class, 'El cuadre ya fue cerrado');
+    expect(ProductReturn::count())->toBe(1)
+        ->and((float) $s->detail->fresh()->returned_quantity)->toBe(5.0);
+});
+
+// 🔁 S19 / DoD-5 — borrar la corrección −2 devuelve returned a 5
+it('restores the detail when a negative correction is deleted', function () {
+    $s = rpsScenario();
+    rpsCount($s, 5);
+    $correction = rpsCount($s, 3);
+
+    $s->service->deleteReturn($correction);
+
+    expect((float) $s->detail->fresh()->returned_quantity)->toBe(5.0)
+        ->and(ProductReturn::count())->toBe(1)
+        ->and(rpsStock($s))->toBe(105.0);
+});
+
+// ⚠️ S20 — devolución manual sin detalle: solo inventario
+it('only reverses inventory for a manual return without a detail link', function () {
+    $s = rpsScenario();
+    $manual = ProductReturn::create([
+        'product_id' => $s->product->id,
+        'employee_id' => $s->employee->id,
+        'quantity' => 2,
+        'type' => ProductReturnTypeEnum::RETURNED,
+        'reason' => 'Devolución manual',
+        'affects_inventory' => true,
+    ]);
+    app(\App\Services\ProductReturnService::class)->registerInventoryMovement($manual); // stock 102
+
+    $s->service->deleteReturn($manual);
+
+    expect(rpsStock($s))->toBe(100.0)
+        ->and((float) $s->detail->fresh()->returned_quantity)->toBe(0.0)
+        ->and(ProductReturn::count())->toBe(0);
+});
+
+// ❌ S21 — no se permite dejar returned en negativo
+it('refuses a deletion that would leave the returned quantity below zero', function () {
+    $s = rpsScenario();
+    $first = rpsCount($s, 5);
+    rpsCount($s, 3);
+
+    expect(fn () => $s->service->deleteReturn($first))->toThrow(RemainingProductCountException::class, 'dejaría la cantidad devuelta en negativo');
+    expect(ProductReturn::count())->toBe(2)
+        ->and((float) $s->detail->fresh()->returned_quantity)->toBe(3.0);
+});
+
+// ❌ S22 — si la reversión falla, la devolución sigue
+it('keeps the return when the inventory reversal fails', function () {
+    $s = rpsScenario(stock: 0);
+    $return = rpsCount($s, 5);              // stock 5
+    FinishedProductInventory::whereKey($s->inventory->id)->update(['stock' => 0]);  // reversión requiere SALIDA 5
+
+    expect(fn () => $s->service->deleteReturn($return))->toThrow(RemainingProductCountException::class, 'No se pudo actualizar el inventario');
+    expect(ProductReturn::count())->toBe(1)
+        ->and((float) $s->detail->fresh()->returned_quantity)->toBe(5.0);
+});
