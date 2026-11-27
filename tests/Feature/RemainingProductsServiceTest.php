@@ -412,3 +412,16 @@ it('refuses the count if the concurrently created reconciliation is completed', 
     expect(fn () => rpsCount($s, 5))->toThrow(RemainingProductCountException::class, 'El cuadre ya fue cerrado');
     expect(ProductReturn::count())->toBe(0);
 });
+
+// ❌ Revisión W2 — borrar una corrección que dejaría el devuelto sobre el máximo
+it('explains why a correction cannot be deleted when it would exceed the returnable maximum', function () {
+    $s = rpsScenario();
+    rpsCount($s, 7);
+    $correction = rpsCount($s, 5);                         // returned 5
+    $s->detail->update(['sale_quantity' => 32]);            // se vendieron 2 más: máximo 5
+
+    expect(fn () => $s->service->deleteReturn($correction))
+        ->toThrow(RemainingProductCountException::class, 'No se puede eliminar: la cantidad devuelta superaría el máximo disponible (5).');
+    expect(ProductReturn::count())->toBe(2)
+        ->and((float) $s->detail->fresh()->returned_quantity)->toBe(5.0);
+});

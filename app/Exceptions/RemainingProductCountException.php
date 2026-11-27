@@ -31,6 +31,11 @@ class RemainingProductCountException extends Exception
         return new self('No se puede eliminar: dejaría la cantidad devuelta en negativo.', 422);
     }
 
+    public static function cannotUndoAboveMaximum(float $max): self
+    {
+        return new self('No se puede eliminar: la cantidad devuelta superaría el máximo disponible ('.self::formatQuantity($max).'). Corrija el conteo en su lugar.', 422);
+    }
+
     public static function inventoryFailed(?\Throwable $previous = null): self
     {
         return new self('No se pudo actualizar el inventario. No se guardó ningún cambio.', 500, $previous);

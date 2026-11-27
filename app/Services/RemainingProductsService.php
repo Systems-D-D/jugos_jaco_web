@@ -29,6 +29,15 @@ class RemainingProductsService
 
     public const REASON_CORRECTION = 'Corrección de conteo de sobrantes';
 
+    /**
+     * Intentos por transacción. Laravel solo reintenta errores de concurrencia
+     * (deadlock / lock wait): en MySQL, dos primeros conteos simultáneos del
+     * mismo empleado y día toman el mismo gap lock al buscar el cuadre y uno
+     * de los INSERT termina en deadlock; el reintento encuentra el cuadre ya
+     * creado y continúa.
+     */
+    private const TRANSACTION_ATTEMPTS = 3;
+
     public function __construct(private ProductReturnService $productReturnService) {}
 
     /**
@@ -94,7 +103,7 @@ class RemainingProductsService
             $detail = $this->lockDetail($employeeId, $date, $detailId);
 
             return $this->applyCount($reconciliation, $detail, $employeeId, $quantity, $countedBy);
-        });
+        }, self::TRANSACTION_ATTEMPTS);
     }
 
     /**
@@ -135,7 +144,7 @@ class RemainingProductsService
             }
 
             return $processed;
-        });
+        }, self::TRANSACTION_ATTEMPTS);
     }
 
     /**
@@ -169,7 +178,7 @@ class RemainingProductsService
 
                     $max = self::maxReturnable($detail);
                     if ($newReturned > $max) {
-                        throw RemainingProductCountException::invalidQuantity($max);
+                        throw RemainingProductCountException::cannotUndoAboveMaximum($max);
                     }
 
                     $detail->update(['returned_quantity' => $newReturned]);
@@ -188,7 +197,7 @@ class RemainingProductsService
             }
 
             $locked->delete();
-        });
+        }, self::TRANSACTION_ATTEMPTS);
     }
 
     private function toRow(DetailAssignedProduct $detail): array
