@@ -50,6 +50,9 @@ class AdminPanelProvider extends PanelProvider
             // Al agregar clases nuevas en app/Filament o resources/views/filament
             // hay que recompilar: `npm run build:theme`.
             ->theme(asset('css/filament/admin/theme.css'))
+            // Ancho máximo del contenido: 1440px, entre el default de Filament
+            // (1280px) y screen-2xl (1536px). Clase propia: depende del tema.
+            ->maxContentWidth('max-w-[90rem]')
             ->navigationGroups([
                'Administración',
                'Clientes',

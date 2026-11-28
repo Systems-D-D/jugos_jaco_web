@@ -19,6 +19,7 @@ use Filament\Tables\Table;
 use Filament\Support\Enums\FontWeight;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
+use Illuminate\Support\Facades\DB;
 use App\Enums\PaymentTypeEnum;
 use App\Enums\PaymentTermEnum;
 
@@ -146,12 +147,24 @@ class AccountReceivableResource extends Resource
     {
         return $table
             ->columns([
-                Tables\Columns\TextColumn::make('sale.client.full_name')
+                Tables\Columns\TextColumn::make('sale.client.business_name')
                     ->label('Cliente')
-                    ->searchable()
-                    ->sortable()
+                    ->searchable(query: fn (Builder $query, string $search): Builder => $query->where(fn (Builder $query) => $query
+                        ->where('name', 'like', "%{$search}%")
+                        ->orWhereHas('sale', fn (Builder $query) => $query->searchByClient($search))))
+                    // Ordena por el texto que se ve: el negocio (o el nombre si
+                    // no tiene) y, en cuentas sin venta, el nombre de la cuenta.
+                    ->sortable(query: fn (Builder $query, string $direction): Builder => $query->orderBy(
+                        DB::raw("COALESCE((
+                            SELECT COALESCE(NULLIF(clients.business_name, ''), clients.first_name)
+                            FROM sales
+                            INNER JOIN clients ON clients.id = sales.client_id
+                            WHERE sales.id = account_receivables.sales_id
+                        ), account_receivables.name)"),
+                        $direction,
+                    ))
                     ->placeholder('Sin cliente')
-                    ->getStateUsing(fn (AccountReceivable $record): ?string => $record->sale?->client?->full_name ?: $record->name),
+                    ->getStateUsing(fn (AccountReceivable $record): ?string => $record->sale?->client_display_name ?: $record->name),
 
                 Tables\Columns\TextColumn::make('total_amount')
                     ->label('Monto Total')
@@ -227,8 +240,14 @@ class AccountReceivableResource extends Resource
                             ->when($data['until'], fn (Builder $query, $amount): Builder => $query->where('total_amount', '<=', $amount));
                     }),
             ])
+            // Sin ViewAction en la tabla, Filament tomaría la URL de EditAction
+            // para el clic en la fila; se fija al detalle explícitamente.
+            ->recordUrl(fn (AccountReceivable $record): ?string => match (true) {
+                static::canView($record) => static::getUrl('view', ['record' => $record]),
+                static::canEdit($record) => static::getUrl('edit', ['record' => $record]),
+                default => null,
+            })
             ->actions([
-                Tables\Actions\ViewAction::make(),
                 Tables\Actions\EditAction::make(),
                 AddPaymentAction::table(),
             ])
