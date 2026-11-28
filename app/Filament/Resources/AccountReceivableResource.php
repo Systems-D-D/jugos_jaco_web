@@ -146,12 +146,27 @@ class AccountReceivableResource extends Resource
     {
         return $table
             ->columns([
-                Tables\Columns\TextColumn::make('sale.client.full_name')
+                Tables\Columns\TextColumn::make('sale.client.business_name')
                     ->label('Cliente')
-                    ->searchable()
+                    ->searchable(query: fn (Builder $query, string $search): Builder => $query->where(fn (Builder $query) => $query
+                        ->where('name', 'like', "%{$search}%")
+                        ->orWhereHas('sale.client', fn (Builder $query) => $query
+                            ->where('business_name', 'like', "%{$search}%")
+                            ->orWhere('first_name', 'like', "%{$search}%")
+                            ->orWhere('last_name', 'like', "%{$search}%"))))
                     ->sortable()
                     ->placeholder('Sin cliente')
-                    ->getStateUsing(fn (AccountReceivable $record): ?string => $record->sale?->client?->full_name ?: $record->name),
+                    ->getStateUsing(function (AccountReceivable $record): ?string {
+                        $client = $record->sale?->client;
+
+                        if (! $client) {
+                            return $record->name;
+                        }
+
+                        return filled($client->business_name)
+                            ? "{$client->business_name} ({$client->full_name})"
+                            : $client->full_name;
+                    }),
 
                 Tables\Columns\TextColumn::make('total_amount')
                     ->label('Monto Total')
@@ -228,7 +243,6 @@ class AccountReceivableResource extends Resource
                     }),
             ])
             ->actions([
-                Tables\Actions\ViewAction::make(),
                 Tables\Actions\EditAction::make(),
                 AddPaymentAction::table(),
             ])
