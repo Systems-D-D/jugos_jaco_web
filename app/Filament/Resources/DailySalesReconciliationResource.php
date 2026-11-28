@@ -266,7 +266,11 @@ class DailySalesReconciliationResource extends Resource
                 Tables\Actions\Action::make('edit_pending')
                     ->label('Editar')
                     ->icon('heroicon-m-pencil-square')
-                    ->url(fn ($record) => route('filament.admin.resources.daily-sales-reconciliations.create', ['employee_id' => $record->employee_id]))
+                    ->url(fn ($record) => route('filament.admin.resources.daily-sales-reconciliations.create', [
+                        'employee_id' => $record->employee_id,
+                        // Sin la fecha el cuadre se abría en el día de hoy.
+                        'reconciliation_date' => $record->reconciliation_date->format('Y-m-d'),
+                    ]))
                     ->visible(fn ($record) => $record->status === \App\Enums\ReconciliationStatusEnum::PENDING)
                     ->color('warning')
                     ->iconButton(),

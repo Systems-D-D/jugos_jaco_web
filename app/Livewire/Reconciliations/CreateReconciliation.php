@@ -15,6 +15,8 @@ use App\Models\Bill;
 use App\Models\ProductReturn;
 use App\Models\AssignedProductMovement;
 use App\Services\ProductReturnService;
+use App\Services\RemainingProductsService;
+use App\Exceptions\RemainingProductCountException;
 use App\Models\TypePrice;
 use App\Models\ProductUnit;
 use App\Models\ProductPrice;
@@ -120,10 +122,12 @@ class CreateReconciliation extends Component
         'return_quantity.min' => 'La cantidad debe ser mayor a 0.',
     ];
 
-    public function mount($employee_id = null): void
+    public function mount($employee_id = null, $reconciliation_date = null): void
     {
         $this->employees = Employee::orderBy('first_name')->get();
-        $this->reconciliation_date = now()->format('Y-m-d');
+        // El botón "Editar" del listado pasa la fecha del cuadre; sin ella (o si
+        // no es válida) se abre el día de hoy.
+        $this->reconciliation_date = $this->normalizeDate($reconciliation_date) ?? now()->format('Y-m-d');
         $this->banks = BankEnum::options();
         $this->products = Product::where('is_active', true)->get();
         $this->return_types = ProductReturnTypeEnum::getOptions();
@@ -252,6 +256,7 @@ class CreateReconciliation extends Component
         $this->loadMovements();
         $this->loadRemainingProducts();
         $this->calculateTotals();
+        $this->syncPendingTotals();
     }
 
     // Método completo que carga datos y crea el cuadre
@@ -450,6 +455,8 @@ class CreateReconciliation extends Component
                 'cash_difference' => $this->cash_difference
             ]);
         }
+
+        $this->syncPendingTotals();
     }
 
     // Método para calcular la diferencia de efectivo
@@ -631,6 +638,7 @@ class CreateReconciliation extends Component
 
         // Recargar los depósitos
         $this->loadDeposits();
+        $this->syncPendingTotals();
     }
 
     // Método para eliminar un depósito
@@ -671,6 +679,7 @@ class CreateReconciliation extends Component
 
             // Recargar los depósitos
             $this->loadDeposits();
+            $this->syncPendingTotals();
         }
     }
 
@@ -736,6 +745,7 @@ class CreateReconciliation extends Component
 
         // Recargar los gastos
         $this->loadBills();
+        $this->syncPendingTotals();
     }
 
     // Método para eliminar un gasto
@@ -770,6 +780,7 @@ class CreateReconciliation extends Component
 
             // Recargar los gastos
             $this->loadBills();
+            $this->syncPendingTotals();
         }
     }
 
@@ -890,46 +901,8 @@ class CreateReconciliation extends Component
             return;
         }
 
-        // Obtener productos asignados al empleado en la fecha seleccionada
-        $assignedProducts = AssignedProduct::with(['details.product'])
-            ->where('employee_id', $this->employee_id)
-            ->assignmentsDate($this->reconciliation_date)
-            ->first();
-
-        if (!$assignedProducts || !$assignedProducts->details) {
-            $this->remaining_products = [];
-            return;
-        }
-
-        // Mapear los detalles de productos asignados con cálculos de sobrantes
-        $this->remaining_products = $assignedProducts->details
-            ->map(function ($detail) {
-                $quantityAssigned = $detail->quantity;
-                $quantitySold = (int) $detail->sale_quantity ?? 0;
-                $returnedQuantity = (float) $detail->returned_quantity ?? 0;
-                $changesQuantity = (float) $detail->changes_quantity ?? 0;
-                $royaltiesQuantity = (float) $detail->royalties_quantity ?? 0;
-                $remaining = $quantityAssigned - $quantitySold - $returnedQuantity - $changesQuantity - $royaltiesQuantity;
-
-                return [
-                    'id' => $detail->id,
-                    'product_id' => $detail->product_id,
-                    'product_name' => $detail->product->name ?? 'Producto no encontrado',
-                    'product_code' => $detail->product->code ?? 'N/A',
-                    'quantity_assigned' => $quantityAssigned,
-                    'quantity_sold' => $quantitySold,
-                    'returned_quantity' => $returnedQuantity,
-                    'changes_quantity' => $changesQuantity,
-                    'royalties_quantity' => $royaltiesQuantity,
-                    'remaining' => $remaining,
-                ];
-            })
-            ->filter(function ($item) {
-                // Mostrar productos que tengan cantidad asignada (para permitir edición de devoluciones)
-                return $item['quantity_assigned'] > 0;
-            })
-            ->values()
-            ->toArray();
+        $this->remaining_products = $this->remainingProductsService()
+            ->listForEmployee((int) $this->employee_id, $this->reconciliation_date);
 
         if ($this->type_price_id) {
             $this->recalculateProductShortage();
@@ -970,6 +943,7 @@ class CreateReconciliation extends Component
 
             $this->resetReturnForm();
             $this->loadReturns();
+            $this->syncPendingTotals();
             session()->flash('success', 'Devolución registrada exitosamente.');
         } catch (\Exception $e) {
             session()->flash('error', 'Error al registrar la devolución: ' . $e->getMessage());
@@ -978,23 +952,26 @@ class CreateReconciliation extends Component
 
     public function deleteReturn(int $returnId): void
     {
-        try {
-            DB::transaction(function () use ($returnId) {
-                $productReturn = ProductReturn::findOrFail($returnId);
-
-                // Revertir el movimiento de inventario antes de eliminar
-                $returnService = new ProductReturnService();
-                $returnService->reverseInventoryMovement($productReturn);
-
-                // Eliminar la devolución
-                $productReturn->delete();
-            });
-
-            $this->loadReturns();
-            session()->flash('success', 'Devolución eliminada exitosamente.');
-        } catch (\Exception $e) {
-            session()->flash('error', 'Error al eliminar la devolución: ' . $e->getMessage());
+        if (!$this->current_reconciliation || !$this->employee_id) {
+            session()->flash('error', 'La devolución no pertenece a este cuadre.');
+            return;
         }
+
+        // Solo devoluciones de este cuadre y empleado: el id llega del navegador.
+        $productReturn = ProductReturn::whereKey($returnId)
+            ->where('reconciliation_id', $this->current_reconciliation->id)
+            ->where('employee_id', $this->employee_id)
+            ->first();
+
+        if (!$productReturn) {
+            session()->flash('error', 'La devolución no pertenece a este cuadre.');
+            return;
+        }
+
+        $this->runRemainingProductsWrite(function () use ($productReturn) {
+            $this->remainingProductsService()->deleteReturn($productReturn);
+            session()->flash('success', 'Devolución eliminada exitosamente.');
+        }, ensurePending: false);
     }
 
     public function resetReturnForm(): void
@@ -1065,48 +1042,22 @@ class CreateReconciliation extends Component
     // Método para actualizar la cantidad retornada de un producto
     public function updateReturnedQuantity($detailId, $returnedQuantity): void
     {
-        try {
-            DB::transaction(function () use ($detailId, $returnedQuantity) {
-                $detail = DetailAssignedProduct::find($detailId);
+        if (!$this->employee_id || !is_numeric($returnedQuantity)) {
+            session()->flash('error', 'Ingrese una cantidad válida.');
+            return;
+        }
 
-                if (!$detail) {
-                    throw new \Exception('Producto no encontrado.');
-                }
-
-                // Validar que la cantidad retornada no sea negativa
-                if ($returnedQuantity < 0) {
-                    throw new \Exception('La cantidad retornada no puede ser negativa.');
-                }
-
-                // Validar que la cantidad retornada no exceda la cantidad asignada menos la vendida
-                $maxReturnable = $detail->quantity - $detail->sale_quantity;
-                if ($returnedQuantity > $maxReturnable) {
-                    throw new \Exception('La cantidad retornada no puede exceder la cantidad disponible.');
-                }
-
-                // Si no hay un cuadre inicializado, lo creamos primero
-                if (!$this->current_reconciliation) {
-                    $this->createPendingReconciliation();
-                }
-
-                // Actualizar la cantidad retornada en el detalle
-                $detail->update(['returned_quantity' => $returnedQuantity]);
-
-                // Crear registro de devolución con la cantidad especificada
-                if ($returnedQuantity > 0) {
-                    $this->createProductReturn($detail, $returnedQuantity);
-                }
-            });
-
-            // Recargar los productos sobrantes para reflejar los cambios
-            $this->loadRemainingProducts();
-            $this->loadReturns();
+        $this->runRemainingProductsWrite(function () use ($detailId, $returnedQuantity) {
+            $this->remainingProductsService()->registerCount(
+                (int) $this->employee_id,
+                $this->reconciliation_date,
+                (int) $detailId,
+                (float) $returnedQuantity,
+                Auth::user()
+            );
 
             session()->flash('success', 'Cantidad retornada registrada correctamente.');
-
-        } catch (\Exception $e) {
-            session()->flash('error', 'Error al registrar la cantidad retornada: ' . $e->getMessage());
-        }
+        });
     }
 
     /**
@@ -1114,82 +1065,115 @@ class CreateReconciliation extends Component
      */
     public function returnAllRemainingProducts(): void
     {
-        try {
-            $processedCount = 0;
-            $errors = [];
-
-            DB::transaction(function () use (&$processedCount, &$errors) {
-                foreach ($this->remaining_products as $product) {
-                    // Solo procesar productos que tengan cantidad sobrante y no tengan cantidad retornada
-                    if ($product['remaining'] > 0 && $product['returned_quantity'] == 0) {
-                        try {
-                            // Usar el método existente updateReturnedQuantity
-                            $this->updateReturnedQuantity($product['id'], $product['remaining']);
-                            $processedCount++;
-                        } catch (\Exception $e) {
-                            $errors[] = "Error con {$product['product_name']}: " . $e->getMessage();
-                        }
-                    }
-                }
-            });
-
-            // Recargar los datos para reflejar los cambios
-            $this->loadRemainingProducts();
-            $this->loadReturns();
-
-            if ($processedCount > 0) {
-                $message = "Se procesaron {$processedCount} productos como retornados exitosamente.";
-                if (!empty($errors)) {
-                    $message .= " Algunos productos tuvieron errores: " . implode(', ', $errors);
-                }
-                session()->flash('success', $message);
-            } else {
-                session()->flash('info', 'No hay productos sobrantes para retornar o todos ya tienen cantidad retornada.');
-            }
-
-        } catch (\Exception $e) {
-            session()->flash('error', 'Error al procesar los productos: ' . $e->getMessage());
+        if (!$this->employee_id) {
+            return;
         }
+
+        $this->runRemainingProductsWrite(function () {
+            $processed = $this->remainingProductsService()
+                ->returnAllRemaining((int) $this->employee_id, $this->reconciliation_date, Auth::user());
+
+            $processed > 0
+                ? session()->flash('success', "Se procesaron {$processed} productos como retornados exitosamente.")
+                : session()->flash('info', 'No hay productos sobrantes para retornar o todos ya tienen cantidad retornada.');
+        });
     }
 
     /**
-     * Crear un registro de devolución de producto
+     * Envoltura común de las escrituras de sobrantes: asegura el pendiente con
+     * totales reales (como hasta ahora), ejecuta la escritura, recarga y
+     * sincroniza totales. Los errores de negocio se muestran tal cual; los
+     * inesperados se registran y el usuario ve un mensaje genérico.
      */
-    private function createProductReturn(DetailAssignedProduct $detail, float $quantity): void
+    private function runRemainingProductsWrite(callable $write, bool $ensurePending = true): void
     {
         try {
-            // Crear el registro de devolución
-            $productReturn = ProductReturn::create([
-                'product_id' => $detail->product_id,
+            if ($ensurePending && !$this->current_reconciliation) {
+                $this->createPendingReconciliation();
+            }
+
+            $write();
+        } catch (RemainingProductCountException $e) {
+            session()->flash('error', $e->getMessage());
+        } catch (\Throwable $e) {
+            Log::error('Cuadre: error al registrar sobrantes', [
                 'employee_id' => $this->employee_id,
-                'reconciliation_id' => $this->current_reconciliation->id,
-                'quantity' => $quantity,
-                'type' => ProductReturnTypeEnum::RETURNED,
-                'reason' => 'Registro desde cuadre de caja',
-                'affects_inventory' => true,
+                'reconciliation_date' => $this->reconciliation_date,
+                'error' => $e->getMessage(),
             ]);
-
-            // Registrar el movimiento de inventario
-            $returnService = new ProductReturnService();
-            $returnService->registerInventoryMovement($productReturn);
-
-            Log::info('Devolución registrada', [
-                'product_return_id' => $productReturn->id,
-                'product_id' => $detail->product_id,
-                'quantity' => $quantity,
-                'employee_id' => $this->employee_id
-            ]);
-
-        } catch (\Exception $e) {
-            Log::error('Error al registrar devolución', [
-                'product_id' => $detail->product_id,
-                'quantity' => $quantity,
-                'employee_id' => $this->employee_id,
-                'error' => $e->getMessage()
-            ]);
-            throw new \Exception('Error al procesar la devolución: ' . $e->getMessage());
+            session()->flash('error', 'No se pudo completar la operación. Intente de nuevo.');
         }
+
+        $this->current_reconciliation = DailySalesReconciliation::getForEmployeeAndDate(
+            (int) $this->employee_id,
+            $this->reconciliation_date
+        );
+        $this->reconciliation_created = $this->current_reconciliation !== null;
+
+        $this->loadRemainingProducts();
+        $this->loadReturns();
+        $this->syncPendingTotals();
     }
+
+    /**
+     * Persiste los totales calculados en pantalla sobre el cuadre PENDIENTE.
+     * El cajero puede haber creado el pendiente con totales en 0 desde la
+     * página de conteo; abrirlo aquí lo pone al día. Nunca toca un cuadre
+     * cerrado. Mismos campos que saveReconciliation(), excepto status (y
+     * total_bills, que no es columna de la tabla).
+     */
+    protected function syncPendingTotals(): void
+    {
+        if (!$this->current_reconciliation) {
+            return;
+        }
+
+        $reconciliation = $this->current_reconciliation->fresh();
+
+        if (!$reconciliation || $reconciliation->status !== ReconciliationStatusEnum::PENDING) {
+            return;
+        }
+
+        $this->calculateTotals();
+
+        $reconciliation->update([
+            'total_cash_sales' => $this->total_cash_sales,
+            'cash_sales' => $this->total_cash_sales - $this->total_deposit_sales,
+            'total_credit_sales' => $this->total_credit_sales,
+            'deposit_sales' => $this->total_deposit_sales,
+            'total_sales' => $this->total_sales,
+            'cash_collections' => $this->total_cash_collections,
+            'deposit_collections' => $this->total_deposit_collections,
+            'total_collections' => $this->total_collections,
+            'total_deposits' => $this->deposits_made,
+            'total_deposit_expected' => $this->total_deposit_expected,
+            'deposit_difference' => $this->deposit_difference,
+            // Los gastos no tienen columna propia: se reflejan en total_cash_expected.
+            'total_cash_expected' => $this->total_cash_expected,
+            'cash_difference' => $this->cash_difference,
+            'product_shortage_total' => $this->product_shortage_total,
+            'type_price_id' => $this->type_price_id,
+        ]);
+
+        $this->current_reconciliation = $reconciliation;
+    }
+
+    private function normalizeDate($value): ?string
+    {
+        if (!is_string($value) || $value === '') {
+            return null;
+        }
+
+        $parsed = \DateTime::createFromFormat('!Y-m-d', $value);
+
+        return $parsed && $parsed->format('Y-m-d') === $value ? $value : null;
+    }
+
+    private function remainingProductsService(): RemainingProductsService
+    {
+        return app(RemainingProductsService::class);
+    }
+
 
     public function loadTypePrices(): void
     {
@@ -1200,6 +1184,7 @@ class CreateReconciliation extends Component
     {
         $this->recalculateProductShortage();
         $this->calculateTotals();
+        $this->syncPendingTotals();
     }
 
     public function recalculateProductShortage(): void
